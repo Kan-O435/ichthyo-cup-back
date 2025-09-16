@@ -1,7 +1,6 @@
 package components
 
 import (
-    "encoding/json"
     "syscall/js"
 
     "github.com/hexops/vecty"
