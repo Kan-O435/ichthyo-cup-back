@@ -694,7 +694,7 @@ type App struct {
 // Render はアプリケーションのルーティングを定義
 func (a *App) Render() vecty.ComponentOrHTML {
 	return elem.Body(
-		router.NewRoute("/", NewMapDisplay(), router.NewRouteOpts{ExactMatch: true}),
+		router.NewRoute("/", NewOpenFreeMap(), router.NewRouteOpts{ExactMatch: true}),
 		router.NewRoute("/login", &components.Login{}, router.NewRouteOpts{ExactMatch: true}),
 		router.NotFoundHandler(&NotFound{}),
 	)
