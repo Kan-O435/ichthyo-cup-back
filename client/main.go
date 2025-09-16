@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"syscall/js"
 
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
@@ -14,18 +15,25 @@ import (
 // OpenFreeMapベースの地図コンポーネント
 type OpenFreeMap struct {
 	vecty.Core
-	
+
 	// 地図設定
-	CenterLat   float64
-	CenterLng   float64
-	ZoomLevel   int
-	TileSize    int
-	
+	CenterLat float64
+	CenterLng float64
+	ZoomLevel int
+	TileSize  int
+
 	// UI状態
 	IsControlsVisible bool
-	
+
 	// タイルプロバイダー
 	TileProvider int // 0: OSM, 1: OpenFreeMap, 2: CartoDB
+
+	// ドラッグ状態
+	isDragging bool
+	dragStartX int
+	dragStartY int
+	mapOffsetX float64
+	mapOffsetY float64
 }
 
 // 新しい地図を作成
@@ -54,18 +62,52 @@ func (m *OpenFreeMap) getMapEndpoint() string {
 func (m *OpenFreeMap) latLngToTile(lat, lng float64, zoom int) (int, int) {
 	latRad := lat * math.Pi / 180.0
 	n := math.Pow(2.0, float64(zoom))
-	
+
 	x := int(math.Floor((lng + 180.0) / 360.0 * n))
 	y := int(math.Floor((1.0 - math.Asinh(math.Tan(latRad))/math.Pi) / 2.0 * n))
-	
+
 	// 範囲制限
-	if x < 0 { x = 0 }
-	if y < 0 { y = 0 }
+	if x < 0 {
+		x = 0
+	}
+	if y < 0 {
+		y = 0
+	}
 	maxTile := int(n) - 1
-	if x > maxTile { x = maxTile }
-	if y > maxTile { y = maxTile }
-	
+	if x > maxTile {
+		x = maxTile
+	}
+	if y > maxTile {
+		y = maxTile
+	}
+
 	return x, y
+}
+
+// ドラッグ終了時にオフセットを緯度経度に変換して中心を更新
+func (m *OpenFreeMap) updateCenterFromOffset() {
+	if m.mapOffsetX == 0 && m.mapOffsetY == 0 {
+		return
+	}
+
+	// 現在の中心をワールド座標(0.0-1.0)に変換
+	n := math.Pow(2.0, float64(m.ZoomLevel))
+	x := (m.CenterLng + 180.0) / 360.0 * n
+	latRad := m.CenterLat * math.Pi / 180
+	y := (1.0 - math.Asinh(math.Tan(latRad))/math.Pi) / 2.0 * n
+
+	// ドラッグによるピクセルオフセットをワールド座標の差分に変換
+	newX := x - m.mapOffsetX/float64(m.TileSize)
+	newY := y - m.mapOffsetY/float64(m.TileSize)
+
+	// 新しいワールド座標から新しい緯度経度を計算
+	m.CenterLng = newX/n*360.0 - 180.0
+	latRad = math.Atan(math.Sinh(math.Pi * (1 - 2*newY/n)))
+	m.CenterLat = latRad * 180.0 / math.Pi
+
+	// ピクセルオフセットをリセット
+	m.mapOffsetX = 0
+	m.mapOffsetY = 0
 }
 
 // ズーム操作
@@ -82,12 +124,6 @@ func (m *OpenFreeMap) zoomOut() {
 		vecty.Rerender(m)
 	}
 }
-
-// 地図移動
-func (m *OpenFreeMap) panNorth() { m.CenterLat += 0.01; vecty.Rerender(m) }
-func (m *OpenFreeMap) panSouth() { m.CenterLat -= 0.01; vecty.Rerender(m) }
-func (m *OpenFreeMap) panEast()  { m.CenterLng += 0.01; vecty.Rerender(m) }
-func (m *OpenFreeMap) panWest()  { m.CenterLng -= 0.01; vecty.Rerender(m) }
 
 // コントロール表示切替
 func (m *OpenFreeMap) toggleControls() {
@@ -106,7 +142,7 @@ func (m *OpenFreeMap) Render() vecty.ComponentOrHTML {
 			vecty.Style("font-family", "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"),
 			vecty.Style("user-select", "none"),
 		),
-		
+
 		// 全画面地図コンテナ
 		elem.Div(
 			vecty.Markup(
@@ -116,26 +152,90 @@ func (m *OpenFreeMap) Render() vecty.ComponentOrHTML {
 				vecty.Style("width", "100vw"),
 				vecty.Style("height", "100vh"),
 			),
-			
+
 			// OpenFreeMapベースの地図レイヤー
 			m.renderOpenFreeMapLayer(),
-			
+
 			// UI コントロール
 			m.renderZoomControls(),
 			m.renderCoordinateInfo(),
 			m.renderControlToggle(),
 		),
-		
+
 		// サイドパネル
 		m.renderConditionalSidePanel(),
 	)
 }
 
-// OpenFreeMapレイヤー（href属性使用）
+// OpenFreeMapレイヤー（ドラッグ＆フルスクリーン対応）
 func (m *OpenFreeMap) renderOpenFreeMapLayer() vecty.ComponentOrHTML {
+	// 画面サイズを取得
+	screenWidth := js.Global().Get("innerWidth").Int()
+	screenHeight := js.Global().Get("innerHeight").Int()
+
+	// 画面を埋めるのに必要なタイル数を計算 (少し余分に描画)
+	gridWidth := (screenWidth / m.TileSize) + 3
+	gridHeight := (screenHeight / m.TileSize) + 3
+	// 常に奇数にして中心を明確にする
+	if gridWidth%2 == 0 {
+		gridWidth++
+	}
+	if gridHeight%2 == 0 {
+		gridHeight++
+	}
+
+	// 中心タイル座標
 	centerX, centerY := m.latLngToTile(m.CenterLat, m.CenterLng, m.ZoomLevel)
 	baseEndpoint := m.getMapEndpoint()
-	
+
+	// タイル要素のスライスを作成
+	var tiles vecty.List
+	for y := -gridHeight / 2; y <= gridHeight/2; y++ {
+		for x := -gridWidth / 2; x <= gridWidth/2; x++ {
+			tileX := centerX + x
+			tileY := centerY + y
+			gridX := x + gridWidth/2
+			gridY := y + gridHeight/2
+			tiles = append(tiles, m.createTileWithHref(baseEndpoint, tileX, tileY, gridX, gridY))
+		}
+	}
+
+	// ドラッグイベントハンドラ
+	onMouseDown := func(e *vecty.Event) {
+		e.Value.Call("preventDefault")
+		m.isDragging = true
+		m.dragStartX = e.Value.Get("clientX").Int()
+		m.dragStartY = e.Value.Get("clientY").Int()
+		// ドラッグ開始時にカーソルを変更
+		e.Value.Get("target").Get("style").Set("cursor", "grabbing")
+	}
+
+	onMouseMove := func(e *vecty.Event) {
+		if m.isDragging {
+			e.Value.Call("preventDefault")
+			clientX := e.Value.Get("clientX").Int()
+			clientY := e.Value.Get("clientY").Int()
+			dx := clientX - m.dragStartX
+			dy := clientY - m.dragStartY
+			m.mapOffsetX += float64(dx)
+			m.mapOffsetY += float64(dy)
+			m.dragStartX = clientX
+			m.dragStartY = clientY
+			vecty.Rerender(m)
+		}
+	}
+
+	onMouseUpOrLeave := func(e *vecty.Event) {
+		if m.isDragging {
+			e.Value.Call("preventDefault")
+			m.isDragging = false
+			// ドラッグ終了時にカーソルを戻す
+			e.Value.Get("target").Get("style").Set("cursor", "grab")
+			m.updateCenterFromOffset()
+			vecty.Rerender(m)
+		}
+	}
+
 	return elem.Div(
 		vecty.Markup(
 			vecty.Style("position", "absolute"),
@@ -146,40 +246,34 @@ func (m *OpenFreeMap) renderOpenFreeMapLayer() vecty.ComponentOrHTML {
 			vecty.Style("display", "flex"),
 			vecty.Style("justify-content", "center"),
 			vecty.Style("align-items", "center"),
+			vecty.Style("cursor", "grab"), // 初期カーソル
+			event.MouseDown(onMouseDown),
+			event.MouseMove(onMouseMove),
+			event.MouseUp(onMouseUpOrLeave),
+			event.MouseLeave(onMouseUpOrLeave),
 		),
-		
-		// 3x3のタイル配置（href属性使用）
+
+		// タイル配置コンテナ
 		elem.Div(
 			vecty.Markup(
 				vecty.Style("position", "relative"),
-				vecty.Style("width", strconv.Itoa(m.TileSize*3)+"px"),
-				vecty.Style("height", strconv.Itoa(m.TileSize*3)+"px"),
+				vecty.Style("width", strconv.Itoa(m.TileSize*gridWidth)+"px"),
+				vecty.Style("height", strconv.Itoa(m.TileSize*gridHeight)+"px"),
+				// ドラッグ中のオフセットを適用
+				vecty.Style("transform", fmt.Sprintf("translate(%.3fpx, %.3fpx)", m.mapOffsetX, m.mapOffsetY)),
 			),
-			
-			// Reactスタイルでhref属性を使用してタイルを表示
-			m.createTileWithHref(baseEndpoint, centerX-1, centerY-1, 0, 0),
-			m.createTileWithHref(baseEndpoint, centerX, centerY-1, 1, 0),
-			m.createTileWithHref(baseEndpoint, centerX+1, centerY-1, 2, 0),
-			
-			m.createTileWithHref(baseEndpoint, centerX-1, centerY, 0, 1),
-			m.createTileWithHref(baseEndpoint, centerX, centerY, 1, 1),
-			m.createTileWithHref(baseEndpoint, centerX+1, centerY, 2, 1),
-			
-			m.createTileWithHref(baseEndpoint, centerX-1, centerY+1, 0, 2),
-			m.createTileWithHref(baseEndpoint, centerX, centerY+1, 1, 2),
-			m.createTileWithHref(baseEndpoint, centerX+1, centerY+1, 2, 2),
+			tiles,
 		),
 	)
 }
 
-// href属性を使用したタイル作成（Reactスタイル）
+// href属性を使用したタイル作成
 func (m *OpenFreeMap) createTileWithHref(baseEndpoint string, tileX, tileY, gridX, gridY int) vecty.ComponentOrHTML {
 	screenX := gridX * m.TileSize
 	screenY := gridY * m.TileSize
-	
-	// OpenFreeMapのタイルURL（Reactのhref方式と同様）
+
 	tileHref := fmt.Sprintf("%s/%d/%d/%d.png", baseEndpoint, m.ZoomLevel, tileX, tileY)
-	
+
 	return elem.Div(
 		vecty.Markup(
 			vecty.Style("position", "absolute"),
@@ -188,17 +282,16 @@ func (m *OpenFreeMap) createTileWithHref(baseEndpoint string, tileX, tileY, grid
 			vecty.Style("width", strconv.Itoa(m.TileSize)+"px"),
 			vecty.Style("height", strconv.Itoa(m.TileSize)+"px"),
 		),
-		
-		// Reactのhref属性と同様にVectyでも実装
+
 		elem.Image(
 			vecty.Markup(
-				prop.Src(tileHref), // href属性の代わりにsrc属性
+				prop.Src(tileHref),
 				prop.Alt(fmt.Sprintf("Tile %d,%d", tileX, tileY)),
 				vecty.Style("width", "100%"),
 				vecty.Style("height", "100%"),
 				vecty.Style("display", "block"),
 				vecty.Style("image-rendering", "pixelated"),
-				vecty.Style("border", "1px solid rgba(255,255,255,0.1)"), // デバッグ用
+				vecty.Style("border", "1px solid rgba(255,255,255,0.1)"),
 			),
 		),
 	)
@@ -218,7 +311,7 @@ func (m *OpenFreeMap) renderZoomControls() vecty.ComponentOrHTML {
 			vecty.Style("flex-direction", "column"),
 			vecty.Style("gap", "4px"),
 		),
-		
+
 		elem.Button(
 			vecty.Text("+"),
 			vecty.Markup(
@@ -233,7 +326,7 @@ func (m *OpenFreeMap) renderZoomControls() vecty.ComponentOrHTML {
 				event.Click(func(e *vecty.Event) { m.zoomIn() }),
 			),
 		),
-		
+
 		elem.Button(
 			vecty.Text("−"),
 			vecty.Markup(
@@ -255,7 +348,7 @@ func (m *OpenFreeMap) renderZoomControls() vecty.ComponentOrHTML {
 func (m *OpenFreeMap) renderCoordinateInfo() vecty.ComponentOrHTML {
 	centerX, centerY := m.latLngToTile(m.CenterLat, m.CenterLng, m.ZoomLevel)
 	endpoint := m.getMapEndpoint()
-	
+
 	return elem.Div(
 		vecty.Markup(
 			vecty.Style("position", "fixed"),
@@ -269,7 +362,7 @@ func (m *OpenFreeMap) renderCoordinateInfo() vecty.ComponentOrHTML {
 			vecty.Style("font-family", "Monaco, monospace"),
 			vecty.Style("max-width", "300px"),
 		),
-		
+
 		elem.Div(vecty.Text(fmt.Sprintf("Lat/Lng: %.6f, %.6f", m.CenterLat, m.CenterLng))),
 		elem.Div(vecty.Text(fmt.Sprintf("Zoom: %d", m.ZoomLevel))),
 		elem.Div(vecty.Text(fmt.Sprintf("Tile: %d,%d", centerX, centerY))),
@@ -314,7 +407,7 @@ func (m *OpenFreeMap) renderConditionalSidePanel() vecty.ComponentOrHTML {
 	return m.renderSidePanel()
 }
 
-// サイドパネル（動作確認済み2つのプロバイダー）
+// サイドパネル
 func (m *OpenFreeMap) renderSidePanel() vecty.ComponentOrHTML {
 	return elem.Div(
 		vecty.Markup(
@@ -328,10 +421,10 @@ func (m *OpenFreeMap) renderSidePanel() vecty.ComponentOrHTML {
 			vecty.Style("overflow-y", "auto"),
 			vecty.Style("color", "white"),
 		),
-		
+
 		elem.Heading2(vecty.Text("地図設定")),
-		
-		// 動作確認済みプロバイダー選択
+
+		// プロバイダー選択
 		elem.Div(
 			vecty.Markup(
 				vecty.Style("background", "rgba(255, 255, 255, 0.05)"),
@@ -346,8 +439,8 @@ func (m *OpenFreeMap) renderSidePanel() vecty.ComponentOrHTML {
 					vecty.Style("font-size", "14px"),
 				),
 			),
-			
-			// OpenStreetMap（デフォルト・詳細）
+
+			// OpenStreetMap
 			elem.Button(
 				vecty.Text("OpenStreetMap（詳細版）"),
 				vecty.Markup(
@@ -355,7 +448,9 @@ func (m *OpenFreeMap) renderSidePanel() vecty.ComponentOrHTML {
 					vecty.Style("margin-bottom", "12px"),
 					vecty.Style("padding", "12px"),
 					vecty.Style("background", func() string {
-						if m.TileProvider == 0 { return "#27AE60" }
+						if m.TileProvider == 0 {
+							return "#27AE60"
+						}
 						return "rgba(255,255,255,0.1)"
 					}()),
 					vecty.Style("border", "none"),
@@ -368,19 +463,8 @@ func (m *OpenFreeMap) renderSidePanel() vecty.ComponentOrHTML {
 						m.TileProvider = 0
 						vecty.Rerender(m)
 					}),
-					event.MouseOver(func(e *vecty.Event) {
-						if m.TileProvider != 0 {
-							e.Target.Get("style").Set("background", "rgba(255,255,255,0.2)")
-						}
-					}),
-					event.MouseOut(func(e *vecty.Event) {
-						if m.TileProvider != 0 {
-							e.Target.Get("style").Set("background", "rgba(255,255,255,0.1)")
-						}
-					}),
 				),
 			),
-			
 			elem.Paragraph(
 				vecty.Text("道路名、建物名など詳細情報を表示"),
 				vecty.Markup(
@@ -389,8 +473,8 @@ func (m *OpenFreeMap) renderSidePanel() vecty.ComponentOrHTML {
 					vecty.Style("margin", "-8px 0 16px 0"),
 				),
 			),
-			
-			// CartoDB（軽量・シンプル）  
+
+			// CartoDB
 			elem.Button(
 				vecty.Text("CartoDB Light（軽量版）"),
 				vecty.Markup(
@@ -398,7 +482,9 @@ func (m *OpenFreeMap) renderSidePanel() vecty.ComponentOrHTML {
 					vecty.Style("margin-bottom", "12px"),
 					vecty.Style("padding", "12px"),
 					vecty.Style("background", func() string {
-						if m.TileProvider == 1 { return "#3498DB" }
+						if m.TileProvider == 1 {
+							return "#3498DB"
+						}
 						return "rgba(255,255,255,0.1)"
 					}()),
 					vecty.Style("border", "none"),
@@ -411,19 +497,8 @@ func (m *OpenFreeMap) renderSidePanel() vecty.ComponentOrHTML {
 						m.TileProvider = 1
 						vecty.Rerender(m)
 					}),
-					event.MouseOver(func(e *vecty.Event) {
-						if m.TileProvider != 1 {
-							e.Target.Get("style").Set("background", "rgba(255,255,255,0.2)")
-						}
-					}),
-					event.MouseOut(func(e *vecty.Event) {
-						if m.TileProvider != 1 {
-							e.Target.Get("style").Set("background", "rgba(255,255,255,0.1)")
-						}
-					}),
 				),
 			),
-			
 			elem.Paragraph(
 				vecty.Text("軽量で読み込みが高速、シンプルなデザイン"),
 				vecty.Markup(
@@ -433,7 +508,7 @@ func (m *OpenFreeMap) renderSidePanel() vecty.ComponentOrHTML {
 				),
 			),
 		),
-		
+
 		// ゲーム準備セクション
 		elem.Div(
 			vecty.Markup(
@@ -452,7 +527,7 @@ func (m *OpenFreeMap) renderSidePanel() vecty.ComponentOrHTML {
 				),
 			),
 			elem.Paragraph(
-				vecty.Text("地図表示が完成しました！次は地図上でクリックして陣地を塗る機能を実装します。"),
+				vecty.Text("地図をドラッグして移動できるようになりました。次はクリックした場所の陣地を塗る機能を実装します。"),
 				vecty.Markup(
 					vecty.Style("font-size", "12px"),
 					vecty.Style("color", "rgba(255,255,255,0.8)"),
@@ -461,66 +536,14 @@ func (m *OpenFreeMap) renderSidePanel() vecty.ComponentOrHTML {
 				),
 			),
 		),
-		
-		// 移動ボタン
-		m.renderNavigationButtons(),
-	)
-}
-
-// ナビゲーションボタン
-func (m *OpenFreeMap) renderNavigationButtons() vecty.ComponentOrHTML {
-	return elem.Div(
-		vecty.Markup(
-			vecty.Style("background", "rgba(255, 255, 255, 0.05)"),
-			vecty.Style("padding", "16px"),
-			vecty.Style("border-radius", "8px"),
-		),
-		
-		elem.Heading3(vecty.Text("地図移動")),
-		
-		elem.Div(
-			vecty.Markup(vecty.Style("text-align", "center"), vecty.Style("margin-bottom", "8px")),
-			elem.Button(vecty.Text("↑"), vecty.Markup(
-				vecty.Style("width", "40px"), vecty.Style("height", "40px"),
-				vecty.Style("background", "rgba(255,255,255,0.1)"), vecty.Style("border", "none"),
-				vecty.Style("color", "white"), vecty.Style("cursor", "pointer"),
-				event.Click(func(e *vecty.Event) { m.panNorth() }),
-			)),
-		),
-		
-		elem.Div(
-			vecty.Markup(vecty.Style("display", "flex"), vecty.Style("justify-content", "space-between"), vecty.Style("margin-bottom", "8px")),
-			elem.Button(vecty.Text("←"), vecty.Markup(
-				vecty.Style("width", "40px"), vecty.Style("height", "40px"),
-				vecty.Style("background", "rgba(255,255,255,0.1)"), vecty.Style("border", "none"),
-				vecty.Style("color", "white"), vecty.Style("cursor", "pointer"),
-				event.Click(func(e *vecty.Event) { m.panWest() }),
-			)),
-			elem.Button(vecty.Text("→"), vecty.Markup(
-				vecty.Style("width", "40px"), vecty.Style("height", "40px"),
-				vecty.Style("background", "rgba(255,255,255,0.1)"), vecty.Style("border", "none"),
-				vecty.Style("color", "white"), vecty.Style("cursor", "pointer"),
-				event.Click(func(e *vecty.Event) { m.panEast() }),
-			)),
-		),
-		
-		elem.Div(
-			vecty.Markup(vecty.Style("text-align", "center")),
-			elem.Button(vecty.Text("↓"), vecty.Markup(
-				vecty.Style("width", "40px"), vecty.Style("height", "40px"),
-				vecty.Style("background", "rgba(255,255,255,0.1)"), vecty.Style("border", "none"),
-				vecty.Style("color", "white"), vecty.Style("cursor", "pointer"),
-				event.Click(func(e *vecty.Event) { m.panSouth() }),
-			)),
-		),
 	)
 }
 
 func main() {
-	vecty.SetTitle("OpenFreeMap - href方式")
-	
+	vecty.SetTitle("OpenFreeMap - Drag & Drop")
+
 	openFreeMap := NewOpenFreeMap()
-	
+
 	vecty.RenderBody(openFreeMap)
 	select {}
 }
