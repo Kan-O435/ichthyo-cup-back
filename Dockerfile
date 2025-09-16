@@ -3,30 +3,24 @@ FROM golang:1.19 as builder
 
 WORKDIR /app
 
-# wasm_exec.jsをコピー
-COPY --from=golang:1.19 /usr/local/go/misc/wasm/wasm_exec.js .
-
-# Go modulesファイルをコピー
-COPY go.mod ./
-COPY go.sum ./
-
-# 依存関係をダウンロード
-RUN go mod download
-
-# ソースコードをコピー
+# ソースコードをすべてコピー
 COPY . .
 
-# WebAssemblyとしてビルド (main.goがclient/内にある場合)
-RUN GOARCH=wasm GOOS=js go build -o app.wasm ./client/main.go
+# WebAssemblyとしてビルド (Goのソースファイルがclient/内にある場合)
+# ここを修正して、正しいパスを指定
+RUN GOARCH=wasm GOOS=js go build -o app.wasm ./client
 
 # 本番ステージ
 FROM nginx:alpine
 
-# 静的ファイルをコピー
-COPY --from=builder /app/app.wasm /usr/share/nginx/html/
-COPY --from=builder /app/wasm_exec.js /usr/share/nginx/html/
+# wasm_exec.jsをNginxのHTMLディレクトリにコピー
+COPY --from=builder /usr/local/go/misc/wasm/wasm_exec.js /usr/share/nginx/html/
 
-# index.htmlを作成またはコピー
+# ビルドしたWebAssemblyバイナリをコピー
+COPY --from=builder /app/app.wasm /usr/share/nginx/html/
+
+# index.htmlをコピー
+# index.htmlもclient/内にあるため、パスを修正
 COPY client/index.html /usr/share/nginx/html/
 
 # カスタムNginx設定をコピー
