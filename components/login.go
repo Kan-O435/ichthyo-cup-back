@@ -1,9 +1,14 @@
 package components
 
 import (
+
+	"encording/json" // jsonのencordin'
+	"syscall/js"
+
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
 	"github.com/hexops/vecty/event"
+
 )
 
 type Login struct {
@@ -14,19 +19,26 @@ type Login struct {
 }
 
 func (l *Login) Render() vecty.ComponentOrHTML {
+
+
 	return elem.Div(
 		elem.Div(
-			elem.Heading1(vecty.Text("Login")),
-
+			elem.Heading1(vecty.Text("Log In")),
 			elem.Form(
 				vecty.Markup(event.Submit(func(e *vecty.Event) {
-					// PreventDefault is handled by Vecty automatically
-					if l.username == "admin" && l.password == "admin1234" {
-						l.message = "Login successful"
-					} else {
-						l.message = "Invalid credentials"
-					}
-					vecty.Rerender(l)
+				authRequest("/api/auth/signup", l.username, l.password,
+					func(_ string) {
+						l.message = "Login successful!!"
+						// cookie will be stored on NextAuth
+						js.Global().Get("window").Get("location").Set("href","/home")
+						vecty.Rerender(l) // it is like re-directin'
+					},
+					/* error handling */
+					func(err string) {
+						l.message = err
+						vecty.Rerender(l)
+					},
+				)
 				})),
 
 				elem.Div(
@@ -58,7 +70,7 @@ func (l *Login) Render() vecty.ComponentOrHTML {
 				),
 				
 				elem.Button(
-					vecty.Text("Login"),
+					vecty.Text("Log in"),
 					vecty.Markup(vecty.Property("type", "submit")),
 				),
 			),
