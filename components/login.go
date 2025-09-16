@@ -2,7 +2,7 @@ package components
 
 import (
 	"github.com/hexops/vecty"
-    "github.com/hexops/vecty/elem"
+  "github.com/hexops/vecty/elem"
 	"github.com/hexops/vecty/elem"
 )
 
