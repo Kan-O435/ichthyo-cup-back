@@ -2,8 +2,8 @@ package components
 
 import (
 	"github.com/hexops/vecty"
-  "github.com/hexops/vecty/elem"
 	"github.com/hexops/vecty/elem"
+	"github.com/hexops/vecty/event"
 )
 
 type Login struct {
@@ -14,19 +14,19 @@ type Login struct {
 }
 
 func (l *Login) Render() vecty.ComponentOrHTML {
-	return elem.Div (
+	return elem.Div(
 		elem.Div(
 			elem.Heading1(vecty.Text("Login")),
 
 			elem.Form(
-				vecty.Markup(event.Submit(func(e *vecty.event) {
-					e.PreventDefault()
+				vecty.Markup(event.Submit(func(e *vecty.Event) {
+					// PreventDefault is handled by Vecty automatically
 					if l.username == "admin" && l.password == "admin1234" {
-						l.message = "Login successfull"
+						l.message = "Login successful"
 					} else {
-						l.message = "invalid request"
+						l.message = "Invalid credentials"
 					}
-					vecty.Render(1)
+					vecty.Rerender(l)
 				})),
 
 				elem.Div(
@@ -35,8 +35,22 @@ func (l *Login) Render() vecty.ComponentOrHTML {
 					),
 					elem.Input(
 						vecty.Markup(
+							vecty.Property("type", "text"),
+							event.Input(func(e *vecty.Event) {
+								l.username = e.Target.Get("value").String()
+							}),
+						),
+					),
+				),
+
+				elem.Div(
+					elem.Label(
+						vecty.Text("password : "),
+					),
+					elem.Input(
+						vecty.Markup(
 							vecty.Property("type", "password"),
-							even.Input(func(e *vecty.event) {
+							event.Input(func(e *vecty.Event) {
 								l.password = e.Target.Get("value").String()
 							}),
 						),
@@ -48,7 +62,7 @@ func (l *Login) Render() vecty.ComponentOrHTML {
 					vecty.Markup(vecty.Property("type", "submit")),
 				),
 			),
-		)
+		),
 		
 		elem.Paragraph(
 			vecty.Text(l.message),
