@@ -9,6 +9,9 @@ import (
 	"github.com/hexops/vecty/elem"
 	"github.com/hexops/vecty/event"
 	"github.com/hexops/vecty/prop"
+	router "marwan.io/vecty-router" // app routing
+
+	"ichthyo-cup-front/components" // login.go
 )
 
 // OpenFreeMapベースの地図コンポーネント
@@ -517,10 +520,35 @@ func (m *OpenFreeMap) renderNavigationButtons() vecty.ComponentOrHTML {
 }
 
 func main() {
-	vecty.SetTitle("OpenFreeMap - href方式")
-	
-	openFreeMap := NewOpenFreeMap()
-	
-	vecty.RenderBody(openFreeMap)
+	vecty.SetTitle("地図表示アプリ")
+	vecty.RenderBody(&App{})
 	select {}
+}
+
+// App は アプリケーションのルートコンポーネント
+type App struct {
+	vecty.Core
+}
+
+// Render はアプリケーションのルーティングを定義
+func (a *App) Render() vecty.ComponentOrHTML {
+	return elem.Body(
+		router.NewRoute("/", NewMapDisplay(), router.NewRouteOpts{ExactMatch: true}),
+		router.NewRoute("/login", &components.Login{}, router.NewRouteOpts{ExactMatch: true}),
+		router.NotFoundHandler(&NotFound{}),
+	)
+}
+
+// NotFound は 404ページのコンポーネント
+type NotFound struct {
+	vecty.Core
+}
+
+// Render は 404ページをレンダリング
+func (nf *NotFound) Render() vecty.ComponentOrHTML {
+	return elem.Div(
+		elem.Heading1(vecty.Text("404 - Page Not Found")),
+		elem.Paragraph(vecty.Text("申し訳ありませんが、お探しのページが見つかりません。")),
+		router.Link("/", "ホームに戻る", router.LinkOptions{}),
+	)
 }
