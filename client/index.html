@@ -1,16 +1,364 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
     <meta charset="utf-8">
-    <title>Go + Vecty App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>軽量地図表示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #1a1a1a;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+        
+        #mapContainer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            cursor: grab;
+        }
+        
+        #mapContainer.dragging {
+            cursor: grabbing;
+        }
+        
+        #mapGrid {
+            position: absolute;
+            width: 768px;
+            height: 768px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .tile {
+            position: absolute;
+            width: 256px;
+            height: 256px;
+            background: #2c3e50;
+            border: 1px solid #34495e;
+        }
+        
+        .tile img {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        #controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 8px;
+            z-index: 1000;
+        }
+        
+        button {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            margin: 2px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        #info {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 1000;
+            font-family: Monaco, monospace;
+        }
+        
+        /* パフォーマンス最適化 */
+        .tile img {
+            image-rendering: auto;
+            image-rendering: crisp-edges;
+            image-rendering: pixelated;
+        }
+        
+        /* タッチデバイス対応 */
+        @media (hover: none) and (pointer: coarse) {
+            button {
+                padding: 15px 20px;
+                font-size: 18px;
+            }
+            
+            #controls {
+                padding: 15px;
+            }
+            
+            #info {
+                font-size: 14px;
+            }
+        }
+    </style>
 </head>
 <body>
-    <script src="wasm_exec.js"></script>
+    <div id="mapContainer">
+        <div id="mapGrid"></div>
+    </div>
+    
+    <div id="controls">
+        <button onclick="zoomIn()">+</button>
+        <button onclick="zoomOut()">−</button>
+    </div>
+    
+    <div id="info">
+        <div>緯度: <span id="lat">35.676</span></div>
+        <div>経度: <span id="lng">139.650</span></div>
+        <div>ズーム: <span id="zoom">10</span></div>
+        <div>CartoDB Light</div>
+    </div>
+
     <script>
-        const go = new Go();
-        WebAssembly.instantiateStreaming(fetch("app.wasm"), go.importObject).then((result) => {
-            go.run(result.instance);
+        // 地図状態管理
+        let map = {
+            lat: 35.676200,
+            lng: 139.650300,
+            zoom: 10,
+            isDragging: false,
+            lastX: 0,
+            lastY: 0
+        };
+        
+        // CartoDB Light タイルURL
+        const tileUrl = 'https://cartodb-basemaps-a.global.ssl.fastly.net/light_all';
+        
+        // 緯度経度からタイル座標に変換
+        function latLngToTile(lat, lng, zoom) {
+            const latRad = lat * Math.PI / 180;
+            const n = Math.pow(2, zoom);
+            const x = Math.floor((lng + 180) / 360 * n);
+            const y = Math.floor((1 - Math.asinh(Math.tan(latRad)) / Math.PI) / 2 * n);
+            return [x, y];
+        }
+        
+        // 地図更新（最適化版）
+        function updateMap() {
+            const [centerX, centerY] = latLngToTile(map.lat, map.lng, map.zoom);
+            const grid = document.getElementById('mapGrid');
+            
+            // 既存タイルをクリア
+            grid.innerHTML = '';
+            
+            // 3x3タイル生成
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    const tile = document.createElement('div');
+                    tile.className = 'tile';
+                    tile.style.left = (dx + 1) * 256 + 'px';
+                    tile.style.top = (dy + 1) * 256 + 'px';
+                    
+                    const img = document.createElement('img');
+                    const tileX = centerX + dx;
+                    const tileY = centerY + dy;
+                    
+                    // タイル範囲チェック
+                    const maxTile = Math.pow(2, map.zoom) - 1;
+                    if (tileX >= 0 && tileX <= maxTile && tileY >= 0 && tileY <= maxTile) {
+                        img.src = `${tileUrl}/${map.zoom}/${tileX}/${tileY}.png`;
+                        img.onerror = () => {
+                            img.style.display = 'none';
+                        };
+                    }
+                    
+                    tile.appendChild(img);
+                    grid.appendChild(tile);
+                }
+            }
+            
+            // 情報更新
+            updateInfo();
+        }
+        
+        // 情報表示更新
+        function updateInfo() {
+            document.getElementById('lat').textContent = map.lat.toFixed(6);
+            document.getElementById('lng').textContent = map.lng.toFixed(6);
+            document.getElementById('zoom').textContent = map.zoom;
+        }
+        
+        // ズーム操作
+        function zoomIn() {
+            if (map.zoom < 18) {
+                map.zoom++;
+                updateMap();
+            }
+        }
+        
+        function zoomOut() {
+            if (map.zoom > 1) {
+                map.zoom--;
+                updateMap();
+            }
+        }
+        
+        // 地図移動
+        function panMap(deltaX, deltaY) {
+            const n = Math.pow(2, map.zoom);
+            const lngDelta = -deltaX * 360 / (256 * n);
+            const latDelta = deltaY * 360 / (256 * n);
+            
+            map.lng += lngDelta;
+            map.lat += latDelta;
+            
+            // 座標制限
+            map.lat = Math.max(-85.0511, Math.min(85.0511, map.lat));
+            map.lng = Math.max(-180, Math.min(180, map.lng));
+        }
+        
+        // イベントリスナー設定
+        const container = document.getElementById('mapContainer');
+        
+        // マウスダウン
+        container.addEventListener('mousedown', (e) => {
+            map.isDragging = true;
+            map.lastX = e.clientX;
+            map.lastY = e.clientY;
+            container.classList.add('dragging');
+            e.preventDefault();
         });
+        
+        // マウスムーブ（スロットリング付き）
+        let lastMoveTime = 0;
+        container.addEventListener('mousemove', (e) => {
+            if (!map.isDragging) return;
+            
+            // 60FPS制限でパフォーマンス向上
+            const now = Date.now();
+            if (now - lastMoveTime < 16) return;
+            lastMoveTime = now;
+            
+            const deltaX = e.clientX - map.lastX;
+            const deltaY = e.clientY - map.lastY;
+            
+            panMap(deltaX, deltaY);
+            updateMap();
+            
+            map.lastX = e.clientX;
+            map.lastY = e.clientY;
+            
+            e.preventDefault();
+        });
+        
+        // マウスアップ
+        container.addEventListener('mouseup', (e) => {
+            map.isDragging = false;
+            container.classList.remove('dragging');
+            e.preventDefault();
+        });
+        
+        // マウスリーブ
+        container.addEventListener('mouseleave', () => {
+            map.isDragging = false;
+            container.classList.remove('dragging');
+        });
+        
+        // ホイールズーム
+        container.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            if (e.deltaY < 0) {
+                zoomIn();
+            } else {
+                zoomOut();
+            }
+        });
+        
+        // キーボードショートカット
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case '+':
+                case '=':
+                    zoomIn();
+                    break;
+                case '-':
+                    zoomOut();
+                    break;
+                case 'ArrowUp':
+                    panMap(0, -50);
+                    updateMap();
+                    break;
+                case 'ArrowDown':
+                    panMap(0, 50);
+                    updateMap();
+                    break;
+                case 'ArrowLeft':
+                    panMap(-50, 0);
+                    updateMap();
+                    break;
+                case 'ArrowRight':
+                    panMap(50, 0);
+                    updateMap();
+                    break;
+            }
+        });
+        
+        // タッチイベント（モバイル対応）
+        let touchStart = { x: 0, y: 0 };
+        
+        container.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                const touch = e.touches[0];
+                touchStart.x = touch.clientX;
+                touchStart.y = touch.clientY;
+                map.isDragging = true;
+                container.classList.add('dragging');
+            }
+            e.preventDefault();
+        });
+        
+        container.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 1 && map.isDragging) {
+                const touch = e.touches[0];
+                const deltaX = touch.clientX - touchStart.x;
+                const deltaY = touch.clientY - touchStart.y;
+                
+                panMap(deltaX, deltaY);
+                updateMap();
+                
+                touchStart.x = touch.clientX;
+                touchStart.y = touch.clientY;
+            }
+            e.preventDefault();
+        });
+        
+        container.addEventListener('touchend', (e) => {
+            map.isDragging = false;
+            container.classList.remove('dragging');
+            e.preventDefault();
+        });
+        
+        // 初期化
+        updateMap();
+        
+        // パフォーマンス監視（デバッグ用）
+        if (window.performance && performance.mark) {
+            performance.mark('map-initialized');
+        }
     </script>
 </body>
 </html>
