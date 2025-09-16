@@ -113,10 +113,6 @@
 
         // 地図描画ロジック
         function updateMap() {
-            if (!mapInitialized) {
-                return; // 初期化が完了するまで描画しない
-            }
-
             const mapGrid = document.getElementById('mapGrid');
             const [centerX, centerY] = go.exports.getTileCoordinates(map.lat, map.lng, Math.floor(map.zoom));
             const baseZoom = Math.floor(map.zoom);
@@ -262,7 +258,6 @@
             window.addEventListener('resize', updateMap);
             
             // 初期描画
-            mapInitialized = true;
             updateMap();
         }
 

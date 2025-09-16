@@ -74,11 +74,19 @@ func (m *ZoomOptimizedMap) getTileURL(x, y, z int) string {
 	return fmt.Sprintf("https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/%d/%d/%d.png", z, x, y)
 }
 
+// 座標変換
 func (m *ZoomOptimizedMap) latLngToTile(lat, lng float64, zoom int) (int, int) {
 	latRad := lat * math.Pi / 180.0
 	n := math.Pow(2.0, float64(zoom))
+	
+	// 経度を常に-180から180の範囲に正規化する
+	// このロジックによって、地図が横方向にループする
+	lng = math.Mod(lng+180.0, 360.0) - 180.0
+	
 	x := int((lng + 180.0) / 360.0 * n)
 	y := int((1.0 - math.Asinh(math.Tan(latRad))/math.Pi) / 2.0 * n)
+	
+	// 緯度方向のワールドラップは行わないため、範囲を制限
 	max := int(n) - 1
 	if x < 0 { x = 0 }
 	if x > max { x = max }
@@ -111,8 +119,7 @@ func (m *ZoomOptimizedMap) onMouseMove(e *vecty.Event) {
 	m.Lat += deltaY * sensitivity
 	if m.Lat > 85 { m.Lat = 85 }
 	if m.Lat < -85 { m.Lat = -85 }
-	if m.Lng > 180 { m.Lng = 180 }
-	if m.Lng < -180 { m.Lng = -180 }
+	// ワールドラップのための経度制限を削除
 	m.LastX, m.LastY = x, y
 	vecty.Rerender(m)
 }
@@ -124,7 +131,7 @@ func (m *ZoomOptimizedMap) onMouseUp(e *vecty.Event) {
 func (m *ZoomOptimizedMap) onWheel(e *vecty.Event) {
 	e.Call("preventDefault")
 	deltaY := e.Get("deltaY").Float()
-	zoomSensitivity := 0.001
+	zoomSensitivity := 0.05
 	if deltaY < 0 {
 		m.Scale += zoomSensitivity
 	} else {
@@ -209,7 +216,7 @@ func (m *ZoomOptimizedMap) Render() vecty.ComponentOrHTML {
 		vecty.Markup(
 			vecty.Style("margin", "0"),
 			vecty.Style("padding", "0"),
-			vecty.Style("overflow", "hidden"),
+			vecty.Style("overflow", "hidden"), // body全体のスクロールバーを非表示
 			vecty.Style("background", "#2c3e50"),
 			vecty.Style("font-family", "Arial, sans-serif"),
 		),
@@ -219,6 +226,7 @@ func (m *ZoomOptimizedMap) Render() vecty.ComponentOrHTML {
 				vecty.Style("inset", "0"),
 				vecty.Style("cursor", map[bool]string{true: "grabbing", false: "grab"}[m.IsDragging]),
 				vecty.Style("touch-action", "none"),
+				vecty.Style("overflow", "hidden"), // このDivで地図の表示エリアをクリップ
 				event.MouseDown(m.onMouseDown),
 				event.MouseMove(m.onMouseMove),
 				event.MouseUp(m.onMouseUp),
@@ -265,13 +273,22 @@ func (m *ZoomOptimizedMap) renderTileGrid() vecty.ComponentOrHTML {
 	
 	halfWidth := numTilesX / 2
 	halfHeight := numTilesY / 2
+	maxTilesAtZoom := int(math.Pow(2, float64(baseZoom)))
 	
 	tileCount := 0
 	
 	for dy := -halfHeight; dy <= halfHeight && tileCount < m.MaxTiles; dy++ {
 		for dx := -halfWidth; dx <= halfWidth && tileCount < m.MaxTiles; dx++ {
-			tileX := centerX + dx
+			tileX := (centerX + dx) % maxTilesAtZoom
+			if tileX < 0 {
+				tileX += maxTilesAtZoom
+			}
+			
 			tileY := centerY + dy
+			
+			if tileY < 0 || tileY >= maxTilesAtZoom {
+				continue
+			}
 			
 			screenX := (dx + halfWidth) * m.TileSize
 			screenY := (dy + halfHeight) * m.TileSize
@@ -294,7 +311,6 @@ func (m *ZoomOptimizedMap) renderTile(tileX, tileY, screenX, screenY int) vecty.
 			vecty.Style("width", tileSizeStr),
 			vecty.Style("height", tileSizeStr),
 			vecty.Style("background", "#34495e"),
-			vecty.Style("border", "1px solid rgba(255,255,255,0.05)"),
 			vecty.Style("box-sizing", "border-box"),
 		),
 		elem.Image(
