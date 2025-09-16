@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
+	"./components"
 )
 
 // HelloWorld コンポーネント
@@ -28,6 +29,9 @@ func (h *HelloWorld) Render() vecty.ComponentOrHTML {
 func main() {
 	// アプリケーションをHTMLの<body>要素にレンダリングします
 	vecty.RenderBody(&HelloWorld{})
+	/* components/login */
+	vecty.SetTitle("Login Form")
+	vecty.RenderBody(&components.Login{})
 	// ブラウザのイベントループをブロックしないように、この関数をブロックします
 	select {}
 }
