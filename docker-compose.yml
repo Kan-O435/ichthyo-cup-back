@@ -1,7 +1,15 @@
-version: '3.8'
-
+version: '3.7'
 services:
   web:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8080:80"
+    volumes:
+      # index.html, main.go, nginx.confをホストからコンテナにマウント
+      - ./client/index.html:/usr/share/nginx/html/index.html
+      - ./client/main.go:/app/client/main.go
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      # Goモジュールと依存関係をマウント
+      - ./:/app
