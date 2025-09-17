@@ -125,6 +125,22 @@ func (p *LoginPage) Render() vecty.ComponentOrHTML {
 			),
 			elem.Button(vecty.Text("Login"), vecty.Markup(vecty.Property("type", "submit"))),
 			elem.Button(
+				vecty.Text("サインアップ"),
+				vecty.Markup(
+					vecty.Style("margin-top", "10px"),
+					vecty.Style("background-color", "#28a745"),
+					vecty.Style("color", "white"),
+					vecty.Style("border", "none"),
+					vecty.Style("padding", "10px 20px"),
+					vecty.Style("border-radius", "4px"),
+					vecty.Style("cursor", "pointer"),
+					vecty.Style("width", "100%"),
+					event.Click(func(e *vecty.Event) {
+						js.Global().Get("location").Set("hash", "#/signup")
+					}),
+				),
+			),
+			elem.Button(
 				vecty.Text("Mapへ移動（スキップ）"),
 				vecty.Markup(
 					vecty.Style("margin-top", "10px"),

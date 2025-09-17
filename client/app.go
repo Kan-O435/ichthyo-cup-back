@@ -1,3 +1,5 @@
+// client/app.go
+
 package main
 
 import (
@@ -5,6 +7,7 @@ import (
 
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
+	"ichthyo-cup-front/components"
 )
 
 // App is the main application component, acting as a router.
@@ -48,6 +51,12 @@ func (a *App) Render() vecty.ComponentOrHTML {
 			a.mapView,
 			a.uiView,
 		)
+
+	// ★★★ サインアップページのルートを追加 ★★★
+	case "#/signup":
+		signupPage := &components.Signup{}
+		return elem.Body(signupPage)
+
 	case "#/login":
 		fallthrough
 	default:

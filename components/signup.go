@@ -22,10 +22,11 @@ func (s *Signup) Render() vecty.ComponentOrHTML {
         elem.Form(
             vecty.Markup(event.Submit(func(e *vecty.Event) {
                 // まず /api/signup を叩く
-                authRequest("/api/signup", s.username, s.password,
+                apiURL := "https://hack-s-ikuthio-2025.vercel.app/api/auth/signup"
+                authRequest(apiURL, s.username, s.password,
                     func(_ string) {
                         // サインアップ成功したら続けてログイン
-                        authRequest("/api/auth/callback/credentials", s.username, s.password,
+                        authRequest("https://hack-s-ikuthio-2025.vercel.app/api/auth/callback/credentials", s.username, s.password,
                             func(_ string) {
                                 s.message = "Signup + Login successful"
                                 js.Global().Get("window").Get("location").Set("href", "/home")
@@ -68,6 +69,21 @@ func (s *Signup) Render() vecty.ComponentOrHTML {
             elem.Button(
                 vecty.Text("Sign Up"),
                 vecty.Markup(vecty.Property("type", "submit")),
+            ),
+        ),
+        elem.Button(
+            vecty.Text("ログインページへ戻る"),
+            vecty.Markup(
+                vecty.Style("margin-top", "10px"),
+                vecty.Style("background-color", "#6c757d"),
+                vecty.Style("color", "white"),
+                vecty.Style("border", "none"),
+                vecty.Style("padding", "10px 20px"),
+                vecty.Style("border-radius", "4px"),
+                vecty.Style("cursor", "pointer"),
+                event.Click(func(e *vecty.Event) {
+                    js.Global().Get("location").Set("hash", "#/login")
+                }),
             ),
         ),
         elem.Paragraph(vecty.Text(s.message)),
