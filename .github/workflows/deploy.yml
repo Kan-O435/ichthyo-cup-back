@@ -1,0 +1,40 @@
+name: Deploy to Hugging Face Spaces
+
+on:
+  push:
+    branches: [ main, develop ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        lfs: true
+    
+    - name: Create Hugging Face compatible structure
+      run: |
+        # README.md for Hugging Face Spaces
+        cat > README.md << 'HFEOF'
+        ---
+        title: Ichthyo Cup Frontend
+        emoji: 🐠
+        colorFrom: blue
+        colorTo: green
+        sdk: docker
+        app_port: 80
+        ---
+        
+        # Ichthyo Cup Frontend
+        
+        Go + Vecty WebAssembly application for Ichthyo Cup.
+        HFEOF
+    
+    - name: Push to Hugging Face Spaces
+      env:
+        HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      run: |
+        git config --global user.email "action@github.com"
+        git config --global user.name "GitHub Action"
+        git remote add hf https://kanyamato:${HF_TOKEN}@huggingface.co/spaces/kanyamato/ichthyo-cup-front
+        git push --force hf HEAD:main
