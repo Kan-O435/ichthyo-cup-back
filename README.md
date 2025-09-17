@@ -1,5 +1,10 @@
-# ikutio-back
+---
+title: Ichthyo Cup Frontend
+emoji: 🐠
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 80
+---
 
-- 2025/09/16
->
->`git fetch origin`→`git pull origin develop`してもリモートの変更持ってこれないのですが、私はGitHubに嫌われたのでしょうか
+# Ichthyo Cup Frontend
