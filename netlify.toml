@@ -1,6 +1,9 @@
 [build]
-  command = "GOOS=js GOARCH=wasm go build -o client/app.wasm ./client/main.go"
+  command = "cd client && GOOS=js GOARCH=wasm go build -o app.wasm ."
   publish = "client"
+
+[build.environment]
+  GO_VERSION = "1.20"
 
 [[redirects]]
   from = "/*"
