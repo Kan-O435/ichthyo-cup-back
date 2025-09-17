@@ -58,15 +58,6 @@ func (a *App) Render() vecty.ComponentOrHTML {
 				js.Global().Get("location").Set("hash", "#/map")
 			},
 		}
-		// Add a link to the signup page
-		return elem.Body(
-			loginPage,
-			elem.Div(
-				vecty.Markup(vecty.Style("text-align", "center"), vecty.Style("margin-top", "20px")),
-				elem.Anchor(vecty.Text("Don't have an account? Sign Up"),
-					vecty.Markup(vecty.Property("href", "#/signup")),
-				),
-			),
-		)
+		return elem.Body(loginPage)
 	}
 }

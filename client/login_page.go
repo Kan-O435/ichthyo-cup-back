@@ -1,9 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"syscall/js"
-
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
 	"github.com/hexops/vecty/event"
@@ -12,80 +9,37 @@ import (
 // LoginPage is a component that displays a login form.
 type LoginPage struct {
 	vecty.Core
-	username   string
-	password   string
-	message    string
-	OnLogin    func()
+	username string
+	password string
+	message  string
+	OnLogin  func()
 }
 
 // onLoginAttempt handles the login attempt by calling the backend API.
 func (p *LoginPage) onLoginAttempt(e *vecty.Event) {
-	// APIに送信するデータを作成
-	requestBody := map[string]string{
-		"username":    p.username, 
-		"password": p.password,
-	}
-	// GoのmapをJSONに変換
-	body, err := json.Marshal(requestBody)
-	if err != nil {
-		p.message = "Error creating request"
-		vecty.Rerender(p)
-		return
-	}
-	apiURL := "https://hack-s-ikuthio-2025.vercel.app/api/auth/login"
-	// JavaScriptのfetch APIを呼び出す準備
-	promise := js.Global().Get("fetch").Invoke(apiURL, map[string]interface{}{
-		"method": "POST",
-		"headers": map[string]interface{}{
-			"Content-Type": "application/json",
-		},
-		"body": string(body),
-	})
+	loginURL := apiBaseURL + "/api/auth/login" // Assuming this endpoint exists
 
-	// 成功時の処理
-	success := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		response := args[0]
-		// レスポンスが成功でなければエラーメッセージを表示
-		if !response.Get("ok").Bool() {
-			p.message = "Invalid credentials"
-			vecty.Rerender(p)
-			return nil
-		}
-
-		// レスポンスボディをJSONとして取得するPromise
-		jsonPromise := response.Call("json")
-		jsonPromise.Call("then", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-			// JSONからトークンを取得
-			token := args[0].Get("token").String()
-			// ここでトークンをlocalStorageなどに保存することができる
-			js.Global().Get("localStorage").Call("setItem", "jwt_token", token)
-
+	authRequest(loginURL, p.username, p.password,
+		func(response string) {
+			// Login successful
 			p.message = "Login successful!"
-			// OnLoginコールバックを呼び出して画面遷移
-			if p.OnLogin != nil {
-				p.OnLogin()
-			}
 			vecty.Rerender(p)
-			return nil
-		}))
 
-		return nil
-	})
+			// In a real app, you'd save a token here.
+			// js.Global().Get("localStorage").Call("setItem", "jwt_token", response)
 
-	// 失敗時の処理
-	failure := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		p.message = "Network error"
-		vecty.Rerender(p)
-		return nil
-	})
-
-	// Promiseの実行
-	promise.Call("then", success).Call("catch", failure)
+			if p.OnLogin != nil {
+				p.OnLogin() // This will trigger navigation to #/map
+			}
+		},
+		func(err string) {
+			p.message = "Login failed: " + err
+			vecty.Rerender(p)
+		},
+	)
 }
 
-
 // Render renders the component.
-// (Render関数は変更なしのため省略)
 func (p *LoginPage) Render() vecty.ComponentOrHTML {
 	return elem.Div(
 		vecty.Markup(
@@ -106,7 +60,7 @@ func (p *LoginPage) Render() vecty.ComponentOrHTML {
 			),
 			elem.Heading1(vecty.Text("Login")),
 			elem.Div(
-				elem.Label(vecty.Text("Username:")), // ラベルを分かりやすく変更
+				elem.Label(vecty.Text("Username:")),
 				elem.Input(vecty.Markup(
 					vecty.Property("type", "text"),
 					event.Input(func(e *vecty.Event) {
@@ -124,38 +78,10 @@ func (p *LoginPage) Render() vecty.ComponentOrHTML {
 				)),
 			),
 			elem.Button(vecty.Text("Login"), vecty.Markup(vecty.Property("type", "submit"))),
-			elem.Button(
-				vecty.Text("サインアップ"),
-				vecty.Markup(
-					vecty.Style("margin-top", "10px"),
-					vecty.Style("background-color", "#28a745"),
-					vecty.Style("color", "white"),
-					vecty.Style("border", "none"),
-					vecty.Style("padding", "10px 20px"),
-					vecty.Style("border-radius", "4px"),
-					vecty.Style("cursor", "pointer"),
-					vecty.Style("width", "100%"),
-					event.Click(func(e *vecty.Event) {
-						js.Global().Get("location").Set("hash", "#/signup")
-					}),
-				),
-			),
-			elem.Button(
-				vecty.Text("Mapへ移動（スキップ）"),
-				vecty.Markup(
-					vecty.Style("margin-top", "10px"),
-					vecty.Style("background-color", "#007bff"),
-					vecty.Style("color", "white"),
-					vecty.Style("border", "none"),
-					vecty.Style("padding", "10px 20px"),
-					vecty.Style("border-radius", "4px"),
-					vecty.Style("cursor", "pointer"),
-					vecty.Style("width", "100%"),
-					event.Click(func(e *vecty.Event) {
-						if p.OnLogin != nil {
-							p.OnLogin()
-						}
-					}),
+			elem.Div(
+				vecty.Markup(vecty.Style("text-align", "center"), vecty.Style("margin-top", "20px")),
+				elem.Anchor(vecty.Text("Don't have an account? Sign Up"),
+					vecty.Markup(vecty.Property("href", "#/signup")),
 				),
 			),
 			p.renderMessage(),

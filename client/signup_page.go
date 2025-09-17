@@ -64,7 +64,7 @@ func (s *SignupPage) handleSignup(e *vecty.Event) {
 	authRequest(signupURL, s.username, s.password,
 		func(response string) {
 			// Signup successful, now try to login
-			s.message = "Signup successful! Logging in..."
+			s.message = "Signup successful! Please log in."
 			vecty.Rerender(s)
 
 			// NOTE: NextAuth credentials login is complex from an external client.
