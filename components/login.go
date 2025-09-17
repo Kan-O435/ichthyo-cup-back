@@ -80,17 +80,3 @@ func (l *Login) Render() vecty.ComponentOrHTML {
 		),
 	)
 }
-
-// authRequest はHTTP認証リクエストを送信する関数
-func authRequest(url, username, password string, onSuccess func(string), onError func(string)) {
-	// WebAssembly環境でのHTTPリクエストの簡単な実装
-	// 実際の本番環境では、適切なAPI呼び出しを実装する必要があります
-	
-	// 簡単なモック実装：
-	// admin/admin1234 の場合は成功、それ以外は失敗
-	if username == "admin" && password == "admin1234" {
-		onSuccess("success")
-	} else {
-		onError("Invalid username or password")
-	}
-}
