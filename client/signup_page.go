@@ -9,7 +9,7 @@ import (
 	"github.com/hexops/vecty/event"
 )
 
-const apiBaseURL = "https://hack-s-ikuthio-2025.vercel.app"
+// apiBaseURL is defined in login_page.go
 
 type SignupPage struct {
 	vecty.Core
