@@ -55,7 +55,7 @@ func (a *App) Render() vecty.ComponentOrHTML {
 	default:
 		loginPage := &LoginPage{
 			OnLogin: func() {
-				js.Global().Get("location").Set("href", "/wplace")
+				js.Global().Get("location").Set("href", "#/map")
 			},
 		}
 		return elem.Body(loginPage)
