@@ -44,9 +44,12 @@ func (a *App) handleRouteChange(this js.Value, args []js.Value) interface{} {
 func (a *App) Render() vecty.ComponentOrHTML {
 	switch a.currentRoute {
 	case "#/map":
+		// 新しいWplaceアプリ（wplace_leaflet.html）にリダイレクト
+		js.Global().Get("location").Set("href", "/wplace")
 		return elem.Body(
-			a.mapView,
-			a.uiView,
+			elem.Div(
+				vecty.Text("リダイレクト中..."),
+			),
 		)
 	case "#/signup":
 		return elem.Body(&SignupPage{})
@@ -55,7 +58,7 @@ func (a *App) Render() vecty.ComponentOrHTML {
 	default:
 		loginPage := &LoginPage{
 			OnLogin: func() {
-				js.Global().Get("location").Set("href", "/wplace")
+				js.Global().Get("location").Set("href", "/map")
 			},
 		}
 		return elem.Body(loginPage)
