@@ -9,12 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-      with:
-        lfs: true
     
-    - name: Create Hugging Face compatible structure
+    - name: Create Hugging Face README
       run: |
-        # README.md for Hugging Face Spaces
         cat > README.md << 'HFEOF'
         ---
         title: Ichthyo Cup Frontend
@@ -27,7 +24,7 @@ jobs:
         
         # Ichthyo Cup Frontend
         
-        Go + Vecty WebAssembly application for Ichthyo Cup.
+        Go + Vecty WebAssembly application.
         HFEOF
     
     - name: Push to Hugging Face Spaces
