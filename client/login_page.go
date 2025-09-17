@@ -1,10 +1,14 @@
 package main
 
 import (
+	"encoding/json"
+	
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
 	"github.com/hexops/vecty/event"
 )
+
+const apiBaseURL = "https://hack-s-ikuthio-2025.vercel.app"
 
 // LoginPage is a component that displays a login form.
 type LoginPage struct {
@@ -21,15 +25,31 @@ func (p *LoginPage) onLoginAttempt(e *vecty.Event) {
 
 	authRequest(loginURL, p.username, p.password,
 		func(response string) {
+			// Parse JWT response
+			var loginResp LoginResponse
+			if err := json.Unmarshal([]byte(response), &loginResp); err != nil {
+				p.message = "Failed to parse login response: " + err.Error()
+				vecty.Rerender(p)
+				return
+			}
+
+			// Parse JWT token to get user ID
+			payload, err := parseJWT(loginResp.Token)
+			if err != nil {
+				p.message = "Failed to parse JWT token: " + err.Error()
+				vecty.Rerender(p)
+				return
+			}
+
+			// Store token and user data
+			storeUserData(loginResp.Token, payload.UserID)
+
 			// Login successful
 			p.message = "Login successful!"
 			vecty.Rerender(p)
 
-			// In a real app, you'd save a token here.
-			// js.Global().Get("localStorage").Call("setItem", "jwt_token", response)
-
 			if p.OnLogin != nil {
-				p.OnLogin() // This will trigger navigation to #/map
+				p.OnLogin() // This will trigger navigation to /wplace
 			}
 		},
 		func(err string) {

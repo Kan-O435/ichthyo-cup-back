@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ichthyo Cup - Wplace風お絵描き</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+        integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+        crossorigin="" />
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .controls {
+            position: fixed;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .top-controls {
+            top: 10px;
+            right: 10px;
+        }
+
+        .bottom-controls {
+            bottom: 10px;
+            left: 10px;
+        }
+
+        .paint-controls {
+            bottom: 10px;
+            right: 10px;
+        }
+
+        .color-palette {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .color-btn {
+            width: 30px;
+            height: 30px;
+            border: 2px solid #ccc;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .color-btn.selected {
+            border-color: #000;
+            border-width: 3px;
+        }
+
+        button {
+            padding: 8px 15px;
+            margin: 2px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .primary-btn {
+            background: #007bff;
+            color: white;
+        }
+
+        .primary-btn:hover {
+            background: #0056b3;
+        }
+
+        .secondary-btn {
+            background: #6c757d;
+            color: white;
+        }
+
+        .info {
+            font-size: 12px;
+            color: #666;
+        }
+
+        #login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+        }
+
+        #login-form {
+            background: white;
+            color: black;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        #login-form input {
+            width: 200px;
+            padding: 10px;
+            margin: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- ログインオーバーレイ -->
+    <div id="login-overlay">
+        <div id="login-form">
+            <h2>Ichthyo Cup</h2>
+            <p>ユーザーIDを入力してください</p>
+            <input type="text" id="user-input" placeholder="ユーザーID" maxlength="20">
+            <br>
+            <button id="login-btn" class="primary-btn">ログイン</button>
+        </div>
+    </div>
+
+    <!-- 地図 -->
+    <div id="map"></div>
+
+    <!-- コントロール -->
+    <div class="controls top-controls">
+        <button id="paint-mode-btn" class="primary-btn">描画モード</button>
+        <button id="move-mode-btn" class="secondary-btn">移動モード</button>
+        <div class="info">
+            <div>ユーザー: <span id="current-user">未ログイン</span></div>
+            <div>座標: <span id="coordinates">-</span></div>
+            <div>ズーム: <span id="zoom-level">-</span></div>
+        </div>
+    </div>
+
+    <div class="controls bottom-controls">
+        <div class="color-palette" id="color-palette">
+            <!-- 色ボタンが動的に追加される -->
+        </div>
+        <div>選択色: <span id="selected-color">#FF0000</span></div>
+    </div>
+
+    <div class="controls paint-controls">
+        <button id="clear-selection-btn" class="secondary-btn">選択クリア</button>
+        <button id="paint-btn" class="primary-btn">ペイント (0個)</button>
+        <button id="reload-paint-btn" class="secondary-btn">ペイント再読み込み</button>
+    </div>
+
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+        integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+        crossorigin=""></script>
+
+    <script>
+        // グローバル変数
+        let map;
+        let currentUser = '';
+        let isPaintMode = false;
+        let selectedColor = '#FF0000';
+        let selectedCells = new Map(); // key: "tileX-tileY-cellX-cellY", value: {tileX, tileY, cellX, cellY, color}
+        let paintedCells = new Map(); // 既にペイントされたセル（キャッシュ）
+
+        // 設定
+        const TILE_SIZE = 256;
+        const CELL_SIZE = 16; // 1セル = 16px
+        const CELLS_PER_TILE = TILE_SIZE / CELL_SIZE; // 16x16
+        const MIN_PAINT_ZOOM = 15;
+        const FIXED_CELL_PIXEL_SIZE = 16; // ズームレベルに関係なく一定のピクセルサイズ
+
+        const colors = [
+            '#FF0000', '#00FF00', '#0000FF', '#FFFF00',
+            '#FF00FF', '#00FFFF', '#FFA500', '#800080',
+            '#008000', '#000080', '#800000', '#808000',
+            '#000000', '#FFFFFF', '#808080', '#C0C0C0'
+        ];
+
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function () {
+            setupLogin();
+            setupColorPalette();
+            setupEventListeners();
+        });
+
+        function setupLogin() {
+            // Check if user is already logged in via localStorage
+            const storedUserId = localStorage.getItem('ichthyo_user');
+            const storedToken = localStorage.getItem('jwt_token');
+
+            if (storedUserId && storedToken) {
+                // Auto-login with stored credentials
+                currentUser = storedUserId;
+                console.log('ローカルストレージから取得したユーザーID:', storedUserId);
+                console.log('ローカルストレージから取得したトークン:', storedToken);
+                document.getElementById('current-user').textContent = storedUserId;
+                document.getElementById('login-overlay').style.display = 'none';
+                initMap();
+                return;
+            }
+
+            const loginBtn = document.getElementById('login-btn');
+            const userInput = document.getElementById('user-input');
+
+            loginBtn.addEventListener('click', function () {
+                const userId = userInput.value.trim();
+                if (userId) {
+                    currentUser = userId;
+                    localStorage.setItem('ichthyo_user', userId); // Store manually entered user ID
+                    document.getElementById('current-user').textContent = userId;
+                    document.getElementById('login-overlay').style.display = 'none';
+                    initMap();
+                } else {
+                    alert('ユーザーIDを入力してください');
+                }
+            });
+
+            userInput.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    loginBtn.click();
+                }
+            });
+        }
+
+        function setupColorPalette() {
+            const palette = document.getElementById('color-palette');
+            colors.forEach((color, index) => {
+                const btn = document.createElement('div');
+                btn.className = 'color-btn' + (index === 0 ? ' selected' : '');
+                btn.style.backgroundColor = color;
+                btn.addEventListener('click', () => selectColor(color));
+                palette.appendChild(btn);
+            });
+        }
+
+        function selectColor(color) {
+            selectedColor = color;
+            document.getElementById('selected-color').textContent = color;
+            document.querySelectorAll('.color-btn').forEach(btn => {
+                btn.classList.toggle('selected', btn.style.backgroundColor === color);
+            });
+        }
+
+        function setupEventListeners() {
+            document.getElementById('paint-mode-btn').addEventListener('click', () => setPaintMode(true));
+            document.getElementById('move-mode-btn').addEventListener('click', () => setPaintMode(false));
+            document.getElementById('clear-selection-btn').addEventListener('click', clearSelection);
+            document.getElementById('paint-btn').addEventListener('click', submitPaint);
+            document.getElementById('reload-paint-btn').addEventListener('click', loadPaintedCells);
+        }
+
+        function initMap() {
+            // 福岡県を中心に初期化
+            map = L.map('map').setView([33.5904, 130.4017], 16);
+
+            // OSMタイルレイヤー（プロキシ経由で安定性向上）
+            L.tileLayer('/tiles/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 18,
+                errorTileUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgZmlsbD0iI2Y5ZjlmOSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkeT0iLjNlbSIgZmlsbD0iIzk5OSIgZm9udC1zaXplPSIxNiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+VGlsZSBsb2FkIGVycm9yPC90ZXh0Pjwvc3ZnPg=='
+            }).addTo(map);
+
+            // デバッグ用: マップの準備完了を確認
+            map.whenReady(function () {
+                console.log('Map is ready!');
+                updateInfo();
+            });
+
+            // イベントリスナー
+            map.on('click', onMapClick);
+            map.on('moveend', updateInfo);
+            map.on('zoomend', onZoomEnd);
+
+            // 初回はペイントデータを自動読み込みしない（リロードボタンで手動実行）
+            // loadPaintedCells();
+
+            updateInfo();
+        }
+
+        function setPaintMode(paint) {
+            isPaintMode = paint;
+            const paintBtn = document.getElementById('paint-mode-btn');
+            const moveBtn = document.getElementById('move-mode-btn');
+
+            if (paint) {
+                paintBtn.className = 'primary-btn';
+                moveBtn.className = 'secondary-btn';
+                map.dragging.disable();
+                map.scrollWheelZoom.disable();
+                map.doubleClickZoom.disable(); // ダブルクリックズームも無効化
+                map.boxZoom.disable(); // ボックスズームも無効化
+
+                // 描画モード時はズームレベルを15に固定
+                map.setZoom(15);
+                console.log('描画モード: ズームレベルを15に固定しました（すべてのズーム操作を無効化）');
+            } else {
+                paintBtn.className = 'secondary-btn';
+                moveBtn.className = 'primary-btn';
+                map.dragging.enable();
+                map.scrollWheelZoom.enable();
+                map.doubleClickZoom.enable(); // ダブルクリックズームを有効化
+                map.boxZoom.enable(); // ボックスズームを有効化
+                console.log('移動モード: ズーム制限を解除しました');
+            }
+        }
+
+        function onMapClick(e) {
+            if (!isPaintMode || map.getZoom() < MIN_PAINT_ZOOM) {
+                return;
+            }
+
+            const zoom = map.getZoom();
+            const point = map.project(e.latlng, zoom);
+
+            // タイル座標
+            const tileX = Math.floor(point.x / TILE_SIZE);
+            const tileY = Math.floor(point.y / TILE_SIZE);
+
+            // セル座標（固定ピクセルサイズで計算）
+            const cellX = Math.floor((point.x % TILE_SIZE) / FIXED_CELL_PIXEL_SIZE);
+            const cellY = Math.floor((point.y % TILE_SIZE) / FIXED_CELL_PIXEL_SIZE);
+
+            const cellKey = `${tileX}-${tileY}-${cellX}-${cellY}`;
+
+            if (selectedCells.has(cellKey)) {
+                // 選択解除
+                selectedCells.delete(cellKey);
+            } else {
+                // 選択
+                selectedCells.set(cellKey, {
+                    tileX, tileY, cellX, cellY, color: selectedColor
+                });
+            }
+
+            updatePaintButton();
+            renderSelectedCells();
+        }
+
+        function clearSelection() {
+            selectedCells.clear();
+            updatePaintButton();
+            renderSelectedCells();
+        }
+
+        function updatePaintButton() {
+            const count = selectedCells.size;
+            document.getElementById('paint-btn').textContent = `ペイント (${count}個)`;
+        }
+
+        function renderSelectedCells() {
+            // 既存の選択表示をクリア
+            map.eachLayer(layer => {
+                if (layer.options && layer.options.isSelection) {
+                    map.removeLayer(layer);
+                }
+            });
+
+            // 選択セルを表示
+            selectedCells.forEach(cell => {
+                const bounds = getCellBounds(cell.tileX, cell.tileY, cell.cellX, cell.cellY);
+                const rect = L.rectangle(bounds, {
+                    color: cell.color,
+                    fillColor: cell.color,
+                    fillOpacity: 0.7,
+                    weight: 1,
+                    isSelection: true
+                }).addTo(map);
+            });
+        }
+
+        function getCellBounds(tileX, tileY, cellX, cellY) {
+            const zoom = map.getZoom();
+
+            // 固定ピクセルサイズ（ズームレベルに関係なく一定）
+
+            // タイル内でのセルの相対位置を計算
+            const cellPixelX = cellX * FIXED_CELL_PIXEL_SIZE;
+            const cellPixelY = cellY * FIXED_CELL_PIXEL_SIZE;
+
+            // タイルの左上角を取得
+            const tilePixelX = tileX * TILE_SIZE;
+            const tilePixelY = tileY * TILE_SIZE;
+
+            // セルの絶対ピクセル位置
+            const absolutePixelX = tilePixelX + cellPixelX;
+            const absolutePixelY = tilePixelY + cellPixelY;
+
+            // ピクセル座標を緯度経度に変換
+            const topLeft = map.unproject([absolutePixelX, absolutePixelY], zoom);
+            const bottomRight = map.unproject([absolutePixelX + FIXED_CELL_PIXEL_SIZE, absolutePixelY + FIXED_CELL_PIXEL_SIZE], zoom);
+
+            return [topLeft, bottomRight];
+        }
+
+        function submitPaint() {
+            if (selectedCells.size === 0) {
+                alert('ペイントするセルを選択してください');
+                return;
+            }
+
+            // タイル別にグループ化
+            const tileGroups = new Map();
+            selectedCells.forEach(cell => {
+                const tileKey = `${cell.tileX}-${cell.tileY}`;
+                if (!tileGroups.has(tileKey)) {
+                    tileGroups.set(tileKey, []);
+                }
+                tileGroups.get(tileKey).push({
+                    cell_x: cell.cellX,
+                    cell_y: cell.cellY,
+                    color: cell.color
+                });
+            });
+
+            // 各タイルに対してPOSTリクエスト
+            const promises = [];
+            tileGroups.forEach((cells, tileKey) => {
+                const [tileX, tileY] = tileKey.split('-').map(Number);
+                const payload = {
+                    user_id: currentUser || "test-user", // フォールバック値
+                    zoom: map.getZoom(),
+                    tile_x: tileX,
+                    tile_y: tileY,
+                    cells: cells
+                };
+
+                console.log('使用するユーザーID:', payload.user_id);
+
+                console.log('送信ペイロード:', payload); // デバッグ用
+
+                const promise = fetch('/api/paint', {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                })
+                    .then(response => {
+                        console.log('レスポンスステータス:', response.status);
+                        console.log('レスポンスヘッダー:', [...response.headers.entries()]);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('レスポンスデータ:', data);
+                        return data;
+                    });
+
+                promises.push(promise);
+            });
+
+            Promise.all(promises).then((results) => {
+                console.log('全ペイント完了:', results);
+                alert('ペイント完了！手動で「ペイント再読み込み」ボタンを押して確認してください。');
+                // ペイントしたセルをキャッシュに追加
+                selectedCells.forEach(cell => {
+                    const cellKey = `${cell.tileX}-${cell.tileY}-${cell.cellX}-${cell.cellY}`;
+                    paintedCells.set(cellKey, cell);
+                });
+                clearSelection();
+                // 自動リロードを停止: loadPaintedCells();
+            }).catch(err => {
+                console.error('ペイントエラー詳細:', err);
+                console.error('エラースタック:', err.stack);
+                alert(`ペイントに失敗しました: ${err.message}`);
+            });
+        }
+
+        function loadPaintedCells() {
+            console.log('ペイント再読み込み開始...');
+
+            // ペイント読み込み時は常にズームレベル15で固定
+            const zoom = 15;
+
+            // 現在のズームレベルを15に強制変更
+            if (map.getZoom() !== 15) {
+                console.log(`現在のズームレベル ${map.getZoom()} を15に変更します`);
+                map.setZoom(15);
+
+                // ズーム変更完了を待ってから読み込み開始
+                setTimeout(() => {
+                    loadPaintedCellsAtZoom15();
+                }, 100);
+                return;
+            }
+
+            loadPaintedCellsAtZoom15();
+        }
+
+        function loadPaintedCellsAtZoom15() {
+            const zoom = 15;
+            const center = map.getCenter();
+            const centerPoint = map.project(center, zoom);
+
+            // 中心タイルを計算
+            const centerTileX = Math.floor(centerPoint.x / TILE_SIZE);
+            const centerTileY = Math.floor(centerPoint.y / TILE_SIZE);
+
+            console.log(`中心タイル: ${centerTileX}, ${centerTileY} (zoom: ${zoom} 固定)`);
+
+            // 既存のペイントレイヤーをクリア
+            map.eachLayer(layer => {
+                if (layer.options && layer.options.isPainted) {
+                    map.removeLayer(layer);
+                }
+            });
+
+            // 中心タイルを囲む5×3の15タイルを読み込み
+            const tilesToLoad = [
+                // 上段（5タイル）
+                { x: centerTileX - 2, y: centerTileY - 1 }, // 左上左
+                { x: centerTileX - 1, y: centerTileY - 1 }, // 左上
+                { x: centerTileX, y: centerTileY - 1 },     // 上
+                { x: centerTileX + 1, y: centerTileY - 1 }, // 右上
+                { x: centerTileX + 2, y: centerTileY - 1 }, // 右上右
+
+                // 中段（5タイル）
+                { x: centerTileX - 2, y: centerTileY },     // 左左
+                { x: centerTileX - 1, y: centerTileY },     // 左
+                { x: centerTileX, y: centerTileY },         // 中心
+                { x: centerTileX + 1, y: centerTileY },     // 右
+                { x: centerTileX + 2, y: centerTileY },     // 右右
+
+                // 下段（5タイル）
+                { x: centerTileX - 2, y: centerTileY + 1 }, // 左下左
+                { x: centerTileX - 1, y: centerTileY + 1 }, // 左下
+                { x: centerTileX, y: centerTileY + 1 },     // 下
+                { x: centerTileX + 1, y: centerTileY + 1 }, // 右下
+                { x: centerTileX + 2, y: centerTileY + 1 }  // 右下右
+            ];
+
+            console.log(`読み込み対象タイル数: ${tilesToLoad.length}`);
+
+            let loadedTiles = 0;
+            tilesToLoad.forEach((tile, index) => {
+                loadTilePaint(tile.x, tile.y, zoom, () => {
+                    loadedTiles++;
+                    console.log(`タイル読み込み進捗: ${loadedTiles}/${tilesToLoad.length}`);
+                });
+            });
+        }
+
+        function loadTilePaint(tileX, tileY, zoom, onComplete = null) {
+            const url = `/api/paint?zoom=${zoom}&tile_x=${tileX}&tile_y=${tileY}`;
+            console.log(`タイル読み込み開始: ${tileX}, ${tileY}, zoom: ${zoom}`);
+
+            fetch(url, {
+                method: 'GET',
+                mode: 'cors',
+                headers: {
+                    'Accept': 'application/json',
+                }
+            })
+                .then(response => {
+                    console.log(`タイル ${tileX}-${tileY} レスポンスステータス:`, response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log(`タイル ${tileX}-${tileY} レスポンスデータ:`, data);
+
+                    if (data.cells && data.cells.length > 0) {
+                        console.log(`タイル ${tileX}-${tileY} に ${data.cells.length} 個のセルが見つかりました`);
+
+                        // ペイントされたセルを表示
+                        data.cells.forEach((cell, index) => {
+                            console.log(`セル ${index + 1}:`, cell);
+
+                            const bounds = getCellBounds(tileX, tileY, cell.cellX, cell.cellY);
+                            console.log(`セル ${index + 1} の座標範囲:`, bounds);
+
+                            const rect = L.rectangle(bounds, {
+                                color: cell.color || '#FF0000',
+                                fillColor: cell.color || '#FF0000',
+                                fillOpacity: 0.8,
+                                weight: 1,
+                                isPainted: true,
+                                tileX: tileX,
+                                tileY: tileY,
+                                cellX: cell.cellX,
+                                cellY: cell.cellY
+                            }).addTo(map);
+
+                            console.log(`セル ${index + 1} をマップに追加しました`);
+                        });
+                    } else {
+                        console.log(`タイル ${tileX}-${tileY} にはペイントされたセルがありません`);
+                    }
+
+                    if (onComplete) onComplete();
+                })
+                .catch(err => {
+                    console.error(`タイル ${tileX}-${tileY} の取得失敗:`, err);
+                    if (onComplete) onComplete();
+                });
+        }
+
+        function onZoomEnd() {
+            // 描画モード中はズームレベルを15に固定
+            if (isPaintMode && map.getZoom() !== 15) {
+                console.log(`描画モード中: ズームレベル ${map.getZoom()} を15に強制変更`);
+                map.setZoom(15);
+            }
+            updateInfo();
+        }
+
+        function updateInfo() {
+            const center = map.getCenter();
+            const zoom = map.getZoom();
+
+            document.getElementById('coordinates').textContent =
+                `${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}`;
+            document.getElementById('zoom-level').textContent = zoom;
+
+            // 自動読み込みを停止（リロードボタンで手動実行）
+            // loadPaintedCells();
+        }
+    </script>
+</body>
+
+</html>
