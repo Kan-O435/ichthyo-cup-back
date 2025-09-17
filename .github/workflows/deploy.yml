@@ -9,6 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # shallow クローンを無効化
+        lfs: false      # LFSを無効化
     
     - name: Create Hugging Face README
       run: |
@@ -27,11 +30,19 @@ jobs:
         Go + Vecty WebAssembly application.
         HFEOF
     
+    - name: Remove large files
+      run: |
+        # 大きなwasmファイルを除外
+        echo "client/app.wasm" >> .gitignore
+        rm -f client/app.wasm
+    
     - name: Push to Hugging Face Spaces
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
       run: |
         git config --global user.email "action@github.com"
         git config --global user.name "GitHub Action"
-        git remote add hf https://kanyamato:${HF_TOKEN}@huggingface.co/spaces/kanyamato/ichthyo-cup-front
+        git remote add hf https://kanyamato:${HF_TOKEN}@huggingface.co/spaces/kanyamato/ichthyo-cup-front || true
+        git add -A
+        git commit -m "Deploy from GitHub Actions" || true
         git push --force hf HEAD:main
