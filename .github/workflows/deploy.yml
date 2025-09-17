@@ -28,7 +28,7 @@ jobs:
         echo "*.wasm" >> .gitignore
         rm -f client/app.wasm
         
-        # Hugging Face用README作成
+        # Hugging Face用README作成（ポート番号を修正）
         cat > README.md << 'HFEOF'
         ---
         title: Ichthyo Cup Frontend
@@ -36,7 +36,7 @@ jobs:
         colorFrom: blue
         colorTo: green
         sdk: docker
-        app_port: 80
+        app_port: 8080
         ---
         
         # Ichthyo Cup Frontend
