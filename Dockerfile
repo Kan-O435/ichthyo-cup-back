@@ -23,7 +23,7 @@ COPY --from=builder /app/app.wasm /usr/share/nginx/html/
 # index.htmlもclient/内にあるため、パスを修正
 COPY client/index.html /usr/share/nginx/html/
 
-# Wplace風アプリをコピー
+# wplace_leaflet.htmlをコピー
 COPY client/wplace_leaflet.html /usr/share/nginx/html/
 
 # カスタムNginx設定をコピー

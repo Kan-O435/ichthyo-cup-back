@@ -95,6 +95,149 @@
             color: #666;
         }
 
+        .ink-display {
+            position: fixed;
+            top: 20px;
+            left: 80px;
+            background: linear-gradient(135deg, #ff6b6b, #ffa500);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            z-index: 1000;
+            border: 3px solid #fff;
+            font-weight: bold;
+            min-width: 120px;
+        }
+
+        .ink-label {
+            font-size: 14px;
+            margin-bottom: 5px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .ink-amount {
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .ranking-dashboard {
+            position: fixed;
+            top: 140px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            min-width: 250px;
+            max-width: 300px;
+            z-index: 1000;
+            border: 2px solid #ddd;
+        }
+
+        .ranking-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .ranking-header h3 {
+            margin: 0;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .refresh-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s;
+        }
+
+        .refresh-btn:hover {
+            background: #0056b3;
+        }
+
+        .ranking-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .ranking-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .ranking-item:last-child {
+            border-bottom: none;
+        }
+
+        .rank-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .rank-number {
+            font-weight: bold;
+            color: #007bff;
+            min-width: 20px;
+        }
+
+        .rank-number.top3 {
+            color: #ffd700;
+            font-size: 16px;
+        }
+
+        .username {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .score {
+            font-weight: bold;
+            color: #28a745;
+        }
+
+        .loading {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
+
+        .error {
+            text-align: center;
+            color: #dc3545;
+            padding: 20px;
+        }
+
         #login-overlay {
             position: fixed;
             top: 0;
@@ -106,24 +249,66 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            flex-direction: column;
             color: white;
         }
 
         #login-form {
-            background: white;
-            color: black;
-            padding: 30px;
-            border-radius: 10px;
+            background: #fff;
+            color: #333;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 8px 16px rgba(0, 0, 0, 0.1);
+            width: 400px;
             text-align: center;
         }
 
+        #login-form h2 {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            color: #333;
+        }
+
+        #login-form p {
+            margin-bottom: 1rem;
+            color: #555;
+        }
+
         #login-form input {
-            width: 200px;
-            padding: 10px;
-            margin: 10px;
-            border: 1px solid #ccc;
+            width: 100%;
+            padding: 0.8rem;
+            margin: 0.5rem 0;
+            border: 1px solid #ddd;
             border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        #login-form input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+
+        #login-form button {
+            width: 100%;
+            padding: 0.8rem;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 1rem;
+        }
+
+        #login-form button:hover {
+            background-color: #0056b3;
+        }
+
+        #login-form button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -148,9 +333,26 @@
         <button id="paint-mode-btn" class="primary-btn">描画モード</button>
         <button id="move-mode-btn" class="secondary-btn">移動モード</button>
         <div class="info">
-            <div>ユーザー: <span id="current-user">未ログイン</span></div>
+            <div>ユーザー: <span id="current-user">未ログイン</span> </div>
             <div>座標: <span id="coordinates">-</span></div>
             <div>ズーム: <span id="zoom-level">-</span></div>
+        </div>
+
+        <!-- 残インク量表示（分離・強化） -->
+        <div class="ink-display">
+            <div class="ink-label">🖌️ 残インク</div>
+            <div class="ink-amount" id="ink-amount">-</div>
+        </div>
+
+        <!-- ランキングダッシュボード -->
+        <div class="ranking-dashboard" id="ranking-dashboard">
+            <div class="ranking-header">
+                <h3>🏆 ランキング</h3>
+                <button id="refresh-ranking-btn" class="refresh-btn">🔄 更新</button>
+            </div>
+            <div class="ranking-list" id="ranking-list">
+                <div class="loading">読み込み中...</div>
+            </div>
         </div>
     </div>
 
@@ -165,6 +367,7 @@
         <button id="clear-selection-btn" class="secondary-btn">選択クリア</button>
         <button id="paint-btn" class="primary-btn">ペイント (0個)</button>
         <button id="reload-paint-btn" class="secondary-btn">ペイント再読み込み</button>
+        <button id="ink-recovery-btn" class="secondary-btn">💧 インク回復ボタンを取得</button>
     </div>
 
     <!-- Leaflet JavaScript -->
@@ -180,6 +383,8 @@
         let selectedColor = '#FF0000';
         let selectedCells = new Map(); // key: "tileX-tileY-cellX-cellY", value: {tileX, tileY, cellX, cellY, color}
         let paintedCells = new Map(); // 既にペイントされたセル（キャッシュ）
+        let inkRecoveryButtons = new Map(); // key: "button-id", value: {button data + layer}
+        let currentInkAmount = 0; // 現在の残インク量
 
         // 設定
         const TILE_SIZE = 256;
@@ -207,14 +412,25 @@
             const storedUserId = localStorage.getItem('ichthyo_user');
             const storedToken = localStorage.getItem('jwt_token');
 
+            console.log('=== ログイン状態チェック ===');
+            console.log('ローカルストレージのichthyo_user:', storedUserId);
+            console.log('ローカルストレージのjwt_token:', storedToken ? '存在する' : '存在しない');
+            console.log('=============================');
+
             if (storedUserId && storedToken) {
                 // Auto-login with stored credentials
                 currentUser = storedUserId;
+                console.log('⚠️ 自動ログイン実行:', storedUserId);
                 console.log('ローカルストレージから取得したユーザーID:', storedUserId);
                 console.log('ローカルストレージから取得したトークン:', storedToken);
                 document.getElementById('current-user').textContent = storedUserId;
                 document.getElementById('login-overlay').style.display = 'none';
                 initMap();
+                // ログイン後に残インク量とランキングを取得
+                setTimeout(() => {
+                    fetchInkAmount();
+                    fetchRankings();
+                }, 1000);
                 return;
             }
 
@@ -225,14 +441,28 @@
                 const userId = userInput.value.trim();
                 if (userId) {
                     currentUser = userId;
+                    console.log('手動ログイン実行:', userId);
                     localStorage.setItem('ichthyo_user', userId); // Store manually entered user ID
                     document.getElementById('current-user').textContent = userId;
                     document.getElementById('login-overlay').style.display = 'none';
                     initMap();
+                    // ログイン後に残インク量を取得
+                    setTimeout(() => fetchInkAmount(), 500);
                 } else {
                     alert('ユーザーIDを入力してください');
                 }
             });
+
+            // ログアウト機能を追加
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', function () {
+                    console.log('ログアウト実行 - ログイン画面に遷移');
+
+                    // ログイン画面を表示
+                    document.getElementById('login-overlay').style.display = 'block';
+                });
+            }
 
             userInput.addEventListener('keypress', function (e) {
                 if (e.key === 'Enter') {
@@ -266,6 +496,8 @@
             document.getElementById('clear-selection-btn').addEventListener('click', clearSelection);
             document.getElementById('paint-btn').addEventListener('click', submitPaint);
             document.getElementById('reload-paint-btn').addEventListener('click', loadPaintedCells);
+            document.getElementById('ink-recovery-btn').addEventListener('click', fetchAndDisplayInkRecoveryButtons);
+            document.getElementById('refresh-ranking-btn').addEventListener('click', fetchRankings);
         }
 
         function initMap() {
@@ -388,13 +620,15 @@
         }
 
         function getCellBounds(tileX, tileY, cellX, cellY) {
-            const zoom = map.getZoom();
+            // 現在のズームレベルを取得
+            const currentZoom = map.getZoom();
 
             // 固定ピクセルサイズ（ズームレベルに関係なく一定）
+            const fixedPixelSize = FIXED_CELL_PIXEL_SIZE;
 
             // タイル内でのセルの相対位置を計算
-            const cellPixelX = cellX * FIXED_CELL_PIXEL_SIZE;
-            const cellPixelY = cellY * FIXED_CELL_PIXEL_SIZE;
+            const cellPixelX = cellX * fixedPixelSize;
+            const cellPixelY = cellY * fixedPixelSize;
 
             // タイルの左上角を取得
             const tilePixelX = tileX * TILE_SIZE;
@@ -404,9 +638,9 @@
             const absolutePixelX = tilePixelX + cellPixelX;
             const absolutePixelY = tilePixelY + cellPixelY;
 
-            // ピクセル座標を緯度経度に変換
-            const topLeft = map.unproject([absolutePixelX, absolutePixelY], zoom);
-            const bottomRight = map.unproject([absolutePixelX + FIXED_CELL_PIXEL_SIZE, absolutePixelY + FIXED_CELL_PIXEL_SIZE], zoom);
+            // ピクセル座標を緯度経度に変換（現在のズームレベルで）
+            const topLeft = map.unproject([absolutePixelX, absolutePixelY], currentZoom);
+            const bottomRight = map.unproject([absolutePixelX + fixedPixelSize, absolutePixelY + fixedPixelSize], currentZoom);
 
             return [topLeft, bottomRight];
         }
@@ -474,6 +708,13 @@
 
             Promise.all(promises).then((results) => {
                 console.log('全ペイント完了:', results);
+
+                // レスポンスから残インク量を取得して更新
+                if (results.length > 0 && results[0].remaining_paint !== undefined) {
+                    updateInkDisplay(results[0].remaining_paint);
+                    console.log('ペイント後の残インク量:', results[0].remaining_paint);
+                }
+
                 alert('ペイント完了！手動で「ペイント再読み込み」ボタンを押して確認してください。');
                 // ペイントしたセルをキャッシュに追加
                 selectedCells.forEach(cell => {
@@ -639,6 +880,353 @@
 
             // 自動読み込みを停止（リロードボタンで手動実行）
             // loadPaintedCells();
+        }
+
+        // ========== 残インク量管理 ==========
+
+        function updateInkDisplay(amount) {
+            currentInkAmount = amount;
+            document.getElementById('ink-amount').textContent = amount;
+            console.log('残インク量更新:', amount);
+        }
+
+        function fetchInkAmount() {
+            if (!currentUser) {
+                console.log('ユーザーがログインしていないため、インク量を取得できません');
+                return;
+            }
+
+            // ローカルストレージから認証情報を取得
+            const storedToken = localStorage.getItem('jwt_token');
+            if (!storedToken) {
+                console.log('JWTトークンが見つからないため、インク量を取得できません');
+                return;
+            }
+
+            console.log('残インク量を取得中...');
+
+            // 現在のユーザーIDをユーザー名として使用
+            // 実際の実装では、JWTをデコードしてユーザー名を取得する必要があります
+            const username = currentUser;
+
+            // パスワードは現在の実装では不明なので、ユーザーIDと同じ値を使用
+            // 本番環境では適切な認証方法に変更が必要
+            const password = currentUser;
+
+            fetch(`/api/info_return?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${storedToken}`
+                }
+            })
+                .then(response => {
+                    console.log('インク量取得レスポンスステータス:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('インク量データ取得成功:', data);
+                    if (data.ink_amount !== undefined) {
+                        updateInkDisplay(data.ink_amount);
+                    } else {
+                        console.warn('インク量データが見つかりません:', data);
+                    }
+                })
+                .catch(err => {
+                    console.error('インク量取得エラー:', err);
+                    // エラーの場合はデフォルト値を表示
+                    document.getElementById('ink-amount').textContent = '-';
+                });
+        }
+
+        // ========== ランキング機能 ==========
+
+        function fetchRankings() {
+            console.log('ランキングを取得中...');
+
+            fetch('/api/rank', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                }
+            })
+                .then(response => {
+                    console.log('ランキング取得レスポンスステータス:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('ランキングデータ取得成功:', data);
+                    displayRankings(data.rankings || []);
+                })
+                .catch(err => {
+                    console.error('ランキング取得エラー:', err);
+                    displayRankingError('ランキングの取得に失敗しました');
+                });
+        }
+
+        function displayRankings(rankings) {
+            const rankingList = document.getElementById('ranking-list');
+
+            if (rankings.length === 0) {
+                rankingList.innerHTML = '<div class="error">ランキングデータがありません</div>';
+                return;
+            }
+
+            const html = rankings.map(ranking => `
+                <div class="ranking-item">
+                    <div class="rank-info">
+                        <div class="rank-number ${ranking.rank <= 3 ? 'top3' : ''}">${ranking.rank}</div>
+                        <div class="username">${ranking.username || 'Unknown'}</div>
+                    </div>
+                    <div class="score">${ranking.score}</div>
+                </div>
+            `).join('');
+
+            rankingList.innerHTML = html;
+        }
+
+        function displayRankingError(message) {
+            const rankingList = document.getElementById('ranking-list');
+            rankingList.innerHTML = `<div class="error">${message}</div>`;
+        }
+
+        // ========== インク回復ボタン機能 ==========
+
+        function fetchAndDisplayInkRecoveryButtons() {
+            console.log('インク回復ボタンを取得中...');
+
+            // 今日の日付を複数の形式で準備
+            const today = new Date();
+            const todayISO = today.toISOString().split('T')[0]; // YYYY-MM-DD
+            const todayUTC = today.toISOString(); // YYYY-MM-DDTHH:mm:ss.sssZ
+
+            console.log('=== 送信する日付パラメータ ===');
+            console.log('今日の日付 (YYYY-MM-DD):', todayISO);
+            console.log('今日の日付 (ISO UTC):', todayUTC);
+            console.log('今日の日付 (ローカル):', today.toLocaleDateString('ja-JP'));
+            console.log('===============================');
+
+            // 日付パラメータを複数送信してバックエンドの期待形式を確認
+            const url = `/api/paint/button?date=${todayISO}&date_iso=${todayUTC}&date_local=${today.toLocaleDateString('ja-JP')}`;
+            console.log('リクエストURL:', url);
+
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                }
+            })
+                .then(response => {
+                    console.log('ボタン取得レスポンスステータス:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.text().then(text => {
+                        console.log('=== バックエンドからの生レスポンス ===');
+                        console.log('Raw Response:', text);
+                        console.log('Response Length:', text.length);
+                        console.log('=====================================');
+
+                        try {
+                            const jsonData = JSON.parse(text);
+                            console.log('Parsed JSON:', jsonData);
+
+                            // 日付の詳細分析
+                            if (jsonData.buttons && Array.isArray(jsonData.buttons)) {
+                                console.log('=== ボタンデータの日付分析 ===');
+                                const today = new Date();
+                                const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+                                console.log('今日の日付 (フロントエンド):', todayStr);
+                                console.log('今日の日付 (ISO):', today.toISOString());
+                                console.log('今日の日付 (ローカル):', today.toLocaleDateString('ja-JP'));
+
+                                jsonData.buttons.forEach((button, index) => {
+                                    console.log(`ボタン ${index + 1}:`);
+                                    console.log('  - ID:', button.id);
+                                    console.log('  - 日付 (raw):', button.date);
+                                    console.log('  - 日付 (Date object):', new Date(button.date));
+                                    console.log('  - 日付 (ISO):', new Date(button.date).toISOString());
+                                    console.log('  - 日付 (YYYY-MM-DD):', new Date(button.date).toISOString().split('T')[0]);
+                                    console.log('  - 今日と一致?:', new Date(button.date).toISOString().split('T')[0] === todayStr);
+                                });
+                                console.log('===============================');
+                            }
+
+                            return jsonData;
+                        } catch (parseError) {
+                            console.error('JSON解析エラー:', parseError);
+                            console.error('解析できなかったテキスト:', text);
+                            throw parseError;
+                        }
+                    });
+                })
+                .then(data => {
+                    console.log('ボタンデータ取得成功:', data);
+                    if (data.buttons && data.buttons.length > 0) {
+                        data.buttons.forEach(button => {
+                            displayInkRecoveryButton(button);
+                            participateInButton(button.id);
+                        });
+                        alert(`${data.buttons.length}個のインク回復ボタンが表示されました！`);
+                    } else {
+                        alert('今日のインク回復ボタンはありません');
+                    }
+                })
+                .catch(err => {
+                    console.error('ボタン取得エラー:', err);
+                    alert(`ボタン取得に失敗しました: ${err.message}`);
+                });
+        }
+
+        function displayInkRecoveryButton(buttonData) {
+            const { id, tile_x, tile_y, cell_x, cell_y, success, fail } = buttonData;
+
+            console.log('=== インク回復ボタン表示デバッグ ===');
+            console.log('ボタンデータ:', buttonData);
+            console.log('タイル座標:', { tile_x, tile_y });
+            console.log('セル座標:', { cell_x, cell_y });
+
+            // ボタンの座標を計算
+            const bounds = getCellBounds(tile_x, tile_y, cell_x, cell_y);
+            console.log(`ボタン ${id} の座標:`, bounds);
+
+            // 現在のマップの中心座標とズームレベルを確認
+            const mapCenter = map.getCenter();
+            const mapZoom = map.getZoom();
+            console.log('現在のマップ中心:', mapCenter);
+            console.log('現在のズームレベル:', mapZoom);
+
+            // ボタン座標がマップの表示範囲内かチェック
+            const mapBounds = map.getBounds();
+            console.log('マップの表示範囲:', mapBounds);
+            console.log('ボタンが表示範囲内か:', mapBounds.contains(bounds[0]) && mapBounds.contains(bounds[1]));
+            console.log('=====================================');
+
+            // 通常のドット表示と同じ方法でインク回復ボタンを表示
+            const rectangle = L.rectangle(bounds, {
+                color: '#ff6b6b',
+                fillColor: '#ffa500',
+                fillOpacity: 0.8,
+                weight: 2,
+                isInkRecoveryButton: true,
+                buttonId: id,
+                buttonData: buttonData
+            }).addTo(map);
+
+            console.log('インク回復ボタン（rectangle）がマップに追加されました');
+
+            // クリックイベントを追加
+            rectangle.on('click', function () {
+                console.log('インク回復ボタンがクリックされました:', id);
+                pushInkRecoveryButton(buttonData);
+            });
+
+            // ツールチップを追加
+            rectangle.bindTooltip(`💧 インク回復ボタン<br>成功: ${success} 失敗: ${fail}`, {
+                permanent: false,
+                direction: 'top'
+            });
+
+            // グローバル変数に保存
+            inkRecoveryButtons.set(id, {
+                ...buttonData,
+                marker: rectangle
+            });
+
+            console.log(`インク回復ボタン ${id} を座標 ${bounds} に表示しました`);
+
+            // 福岡県北部にマップを移動（テスト用）
+            console.log('福岡県北部にマップを移動します...');
+            const center = [
+                (bounds[0].lat + bounds[1].lat) / 2,
+                (bounds[0].lng + bounds[1].lng) / 2
+            ];
+            map.setView(center, 15);
+            console.log('マップ移動完了');
+        }
+
+        function participateInButton(buttonId) {
+            const payload = {
+                action: "participate",
+                button_id: buttonId,
+                user_id: currentUser
+            };
+
+            console.log('参加表明送信:', payload);
+
+            fetch('/api/paint/button', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            })
+                .then(response => {
+                    console.log('参加表明レスポンスステータス:', response.status);
+                    if (!response.ok) {
+                        // 404エラーの場合はモックレスポンス
+                        console.log('参加表明API未実装のため、モックレスポンスを使用');
+                        return { status: "success", message: "Participation registered (mock)" };
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('参加表明成功:', data);
+                })
+                .catch(err => {
+                    console.error('参加表明エラー:', err);
+                    // エラーでも表示は継続
+                });
+        }
+
+        function pushInkRecoveryButton(buttonData) {
+            const payload = {
+                action: "push",
+                button_id: buttonData.id,
+                user_id: currentUser
+            };
+
+            console.log('ボタンプッシュ送信:', payload);
+
+            fetch('/api/paint/button', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            })
+                .then(response => {
+                    console.log('ボタンプッシュレスポンスステータス:', response.status);
+                    if (!response.ok) {
+                        // 404エラーの場合はモックレスポンス
+                        console.log('プッシュAPI未実装のため、モックレスポンスを使用');
+                        return { status: "success", message: "Button pushed (mock)" };
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('ボタンプッシュ成功:', data);
+                    if (data.status === 'success') {
+                        alert('🎉 インク回復ボタンを押しました！インクが回復しました！（モック）');
+
+                        // ボタンを非表示にする（使用済み）
+                        const buttonInfo = inkRecoveryButtons.get(buttonData.id);
+                        if (buttonInfo && buttonInfo.marker) {
+                            map.removeLayer(buttonInfo.marker);
+                            inkRecoveryButtons.delete(buttonData.id);
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error('ボタンプッシュエラー:', err);
+                    alert(`ボタンプッシュに失敗しました: ${err.message}`);
+                });
         }
     </script>
 </body>

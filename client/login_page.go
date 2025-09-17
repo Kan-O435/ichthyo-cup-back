@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
-	
+	"syscall/js"
+
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
 	"github.com/hexops/vecty/event"
 )
 
+// apiBaseURL is defined here as it might not be in signup_page
 const apiBaseURL = "https://hack-s-ikuthio-2025.vercel.app"
 
 // LoginPage is a component that displays a login form.
@@ -63,19 +65,10 @@ func (p *LoginPage) onLoginAttempt(e *vecty.Event) {
 func (p *LoginPage) Render() vecty.ComponentOrHTML {
 	return elem.Div(
 		vecty.Markup(
-			vecty.Style("display", "flex"),
-			vecty.Style("justify-content", "center"),
-			vecty.Style("align-items", "center"),
-			vecty.Style("height", "100vh"),
-			vecty.Style("background-color", "#282c34"),
-			vecty.Style("color", "white"),
+			vecty.Class("login-container"),
 		),
 		elem.Form(
 			vecty.Markup(
-				vecty.Style("padding", "40px"),
-				vecty.Style("background-color", "#20232a"),
-				vecty.Style("border-radius", "8px"),
-				vecty.Style("box-shadow", "0 4px 8px rgba(0,0,0,0.3)"),
 				event.Submit(p.onLoginAttempt).PreventDefault(),
 			),
 			elem.Heading1(vecty.Text("Login")),
@@ -98,13 +91,13 @@ func (p *LoginPage) Render() vecty.ComponentOrHTML {
 				)),
 			),
 			elem.Button(vecty.Text("Login"), vecty.Markup(vecty.Property("type", "submit"))),
-			elem.Div(
-				vecty.Markup(vecty.Style("text-align", "center"), vecty.Style("margin-top", "20px")),
-				elem.Anchor(vecty.Text("Don't have an account? Sign Up"),
-					vecty.Markup(vecty.Property("href", "#/signup")),
-				),
-			),
 			p.renderMessage(),
+		),
+		elem.Button(
+			vecty.Text("Don't have an account? Sign Up"),
+			vecty.Markup(event.Click(func(e *vecty.Event) {
+				js.Global().Get("location").Set("hash", "#/signup")
+			})),
 		),
 	)
 }
