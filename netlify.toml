@@ -1,4 +1,5 @@
 [build]
+  command = "GOOS=js GOARCH=wasm go build -o client/app.wasm ./client/main.go"
   publish = "client"
 
 [[redirects]]
