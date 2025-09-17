@@ -4,8 +4,92 @@
     <meta charset="UTF-8">
     <title>Ichthyo Cup</title>
     <style>
-        body { margin: 0; padding: 0; }
-        /* ...その他のスタイル... */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .login-container,
+        .signup-container {
+            background: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 8px 16px rgba(0, 0, 0, 0.1);
+            width: 400px;
+            text-align: center;
+        }
+
+        .login-container h1,
+        .signup-container h1 {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            color: #333;
+        }
+
+        .login-container div,
+        .signup-container div {
+            margin-bottom: 1rem;
+            text-align: left;
+        }
+
+        .login-container label,
+        .signup-container label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .login-container input,
+        .signup-container input {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .login-container button,
+        .signup-container button {
+            width: 100%;
+            padding: 0.8rem;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 1rem;
+        }
+
+        .login-container button:hover,
+        .signup-container button:hover {
+            background-color: #0056b3;
+        }
+
+        .login-container button:last-of-type,
+        .signup-container button:last-of-type {
+            background-color: #6c757d;
+            margin-top: 0.5rem;
+        }
+
+        .login-container button:last-of-type:hover,
+        .signup-container button:last-of-type:hover {
+            background-color: #5a6268;
+        }
+
+        .login-container p,
+        .signup-container p {
+            color: red;
+            margin-top: 1rem;
+        }
     </style>
 </head>
 <body>
