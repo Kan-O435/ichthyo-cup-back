@@ -249,24 +249,66 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            flex-direction: column;
             color: white;
         }
 
         #login-form {
-            background: white;
-            color: black;
-            padding: 30px;
-            border-radius: 10px;
+            background: #fff;
+            color: #333;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 8px 16px rgba(0, 0, 0, 0.1);
+            width: 400px;
             text-align: center;
         }
 
+        #login-form h2 {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            color: #333;
+        }
+
+        #login-form p {
+            margin-bottom: 1rem;
+            color: #555;
+        }
+
         #login-form input {
-            width: 200px;
-            padding: 10px;
-            margin: 10px;
-            border: 1px solid #ccc;
+            width: 100%;
+            padding: 0.8rem;
+            margin: 0.5rem 0;
+            border: 1px solid #ddd;
             border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        #login-form input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+
+        #login-form button {
+            width: 100%;
+            padding: 0.8rem;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 1rem;
+        }
+
+        #login-form button:hover {
+            background-color: #0056b3;
+        }
+
+        #login-form button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
         }
     </style>
 </head>
